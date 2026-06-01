@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>K-Health</title>
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#ef4444">
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{
+  height:100%;font-family:'Inter',-apple-system,sans-serif;
+  font-size:15px;line-height:1.5;color:#111827;
+  background:#f8f9fa;-webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+a{text-decoration:none;color:inherit}
+button{font-family:'Inter',sans-serif;cursor:pointer;border:none}
+
+:root{
+  --red:    #ef4444;
+  --red-dk: #dc2626;
+  --red-bg: #fef2f2;
+  --green:  #10b981;
+  --green-bg:#ecfdf5;
+  --blue:   #2563eb;
+  --blue-bg:#eff6ff;
+  --orange: #f59e0b;
+  --border: #e5e7eb;
+  --txt2:   #4b5563;
+  --txt3:   #6b7280;
+  --safe-b: env(safe-area-inset-bottom,0px);
+}
+
+/* ══ 전체 앱 ══ */
+.app{
+  display:flex;flex-direction:column;
+  height:100%;max-width:480px;margin:0 auto;
+  background:#f8f9fa;position:relative;
+}
+
+/* ══ 상단 바 ══ */
+.topbar{
+  background:#fff;border-bottom:1px solid var(--border);
+  padding:12px 16px;display:flex;align-items:center;gap:10px;
+  flex-shrink:0;position:relative;z-index:10;
+}
+.topbar-logo{
+  display:flex;align-items:center;gap:8px;
+}
+.topbar-mark{
+  width:30px;height:30px;background:var(--red);
+  border-radius:8px;display:flex;align-items:center;
+  justify-content:center;font-size:14px;font-weight:900;color:#fff;
+}
+.topbar-name{font-size:16px;font-weight:800;color:#111}
+.topbar-right{margin-left:auto;display:flex;gap:6px}
+.tb-btn{
+  padding:7px 12px;border-radius:8px;
+  font-size:12px;font-weight:700;
+}
+.tb-btn-red{background:var(--red);color:#fff}
+.tb-btn-ghost{background:transparent;border:1px solid var(--border);color:#374151}
+.emergency-pill{
+  background:#fee2e2;color:var(--red-dk);
+  border:1.5px solid #fca5a5;
+  border-radius:20px;padding:5px 10px;
+  font-size:11px;font-weight:700;
+  display:flex;align-items:center;gap:4px;
+  animation:epulse 2s infinite;
+}
+@keyframes epulse{0%,100%{border-color:#fca5a5}50%{border-color:var(--red-dk)}}
+
+/* ══ 스크롤 콘텐츠 영역 ══ */
+.content{
+  flex:1;overflow-y:auto;overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;
+}
+
+/* ══ 화면들 ══ */
+.screen{display:none;animation:fadeIn .2s ease}
+.screen.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ══ 홈 화면 ══ */
+.home-hero{
+  background:linear-gradient(135deg,var(--red-dk) 0%,#991b1b 100%);
+  padding:20px 16px;color:#fff;
+}
+.home-hero-title{font-size:18px;font-weight:800;margin-bottom:4px}
+.home-hero-sub{font-size:13px;opacity:.8}
+.vitals-row{
+  display:flex;gap:10px;margin-top:14px;
+}
+.vital-mini{
+  flex:1;background:rgba(255,255,255,.15);
+  border-radius:10px;padding:10px;text-align:center;
+}
+.vm-val{font-size:18px;font-weight:800;line-height:1.1}
+.vm-label{font-size:10px;opacity:.7;margin-top:2px}
+
+/* 증상 버튼 그리드 */
+.section-label{
+  font-size:11px;font-weight:700;color:var(--txt3);
+  text-transform:uppercase;letter-spacing:.5px;
+  padding:16px 16px 8px;
+}
+.symptom-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:8px;padding:0 16px;
+}
+.symptom-btn{
+  background:#fff;border:1.5px solid var(--border);
+  border-radius:10px;padding:12px 6px;
+  text-align:center;cursor:pointer;transition:all .15s;
+}
+.symptom-btn:active{background:var(--red-bg);border-color:var(--red)}
+.sb-icon{font-size:22px;display:block;margin-bottom:4px}
+.sb-label{font-size:11px;font-weight:600;color:#374151}
+
+/* 예약 카드 */
+.appt-card{
+  margin:0 16px 10px;background:#fff;
+  border-radius:12px;border:1px solid var(--border);
+  padding:14px;display:flex;align-items:center;gap:12px;
+}
+.appt-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.appt-info{flex:1;min-width:0}
+.appt-name{font-size:13px;font-weight:700;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.appt-time{font-size:11px;color:var(--txt3);margin-top:2px}
+.appt-status{
+  font-size:10px;font-weight:700;padding:3px 7px;border-radius:6px;flex-shrink:0;
+}
+.s-confirmed{background:var(--green-bg);color:#065f46}
+.s-pending{background:#fffbeb;color:#92400e}
+
+/* AI 추천 배너 */
+.ai-banner{
+  margin:0 16px 10px;background:var(--red-bg);
+  border:1px solid #fca5a5;border-radius:12px;padding:14px;
+  display:flex;align-items:flex-start;gap:10px;
+}
+.ai-banner-icon{font-size:24px;flex-shrink:0}
+.ai-banner-text{font-size:13px;color:#374151;line-height:1.6}
+.ai-banner-btn{
+  margin-top:10px;width:100%;padding:9px;border-radius:8px;
+  background:var(--red);color:#fff;font-size:13px;font-weight:700;
+  border:none;cursor:pointer;
+}
+
+/* ══ AI 채팅 화면 ══ */
+.chat-screen{
+  display:none;flex-direction:column;height:100%;
+}
+.chat-screen.active{display:flex}
+.chat-header{
+  background:#fff;border-bottom:1px solid var(--border);
+  padding:12px 16px;display:flex;align-items:center;gap:10px;
+  flex-shrink:0;
+}
+.chat-avatar{
+  width:36px;height:36px;border-radius:50%;
+  background:linear-gradient(135deg,var(--red),#7c3aed);
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;flex-shrink:0;
+}
+.chat-header-info{flex:1}
+.chat-header-name{font-size:14px;font-weight:700}
+.chat-header-status{
+  font-size:11px;color:var(--green);font-weight:500;
+  display:flex;align-items:center;gap:4px;
+}
+.chat-header-status::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--green);display:inline-block}
+.chat-header-back{
+  padding:6px 10px;border-radius:8px;
+  font-size:12px;font-weight:600;color:#374151;
+  background:#f3f4f6;border:none;cursor:pointer;
+}
+.chat-attach-row{
+  background:#fff;padding:8px 14px;
+  border-bottom:1px solid var(--border);
+  display:flex;gap:6px;align-items:center;
+  font-size:11px;color:var(--txt3);flex-shrink:0;
+}
+.attach-btn{
+  background:#f3f4f6;border:1px solid var(--border);
+  border-radius:7px;padding:5px 10px;font-size:11px;font-weight:600;color:#374151;
+  cursor:pointer;display:flex;align-items:center;gap:4px;
+}
+
+.chat-body{
+  flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:14px 16px;display:flex;flex-direction:column;gap:10px;
+  background:#f8f9fa;
+}
+.bubble-ai{
+  max-width:88%;align-self:flex-start;
+  background:#fff;border:1px solid var(--border);
+  border-radius:4px 14px 14px 14px;
+  padding:10px 13px;font-size:14px;line-height:1.7;color:#111;
+  box-shadow:0 1px 2px rgba(0,0,0,.05);
+}
+.bubble-user{
+  max-width:88%;align-self:flex-end;
+  background:var(--red);color:#fff;
+  border-radius:14px 14px 4px 14px;
+  padding:10px 13px;font-size:14px;line-height:1.7;
+}
+.bubble-emergency{
+  background:#fee2e2;border:2px solid var(--red);
+  border-radius:10px;padding:12px;
+  font-size:13px;color:var(--red-dk);
+}
+.quick-btns{
+  display:flex;flex-wrap:wrap;gap:6px;align-self:flex-start;
+}
+.qb{
+  background:#fff;border:1.5px solid var(--border);
+  border-radius:18px;padding:5px 11px;
+  font-size:12px;font-weight:600;color:#374151;
+  cursor:pointer;
+}
+.qb:active{background:var(--red-bg);border-color:var(--red);color:var(--red-dk)}
+
+.chat-input-area{
+  background:#fff;border-top:1px solid var(--border);
+  padding:10px 12px;
+  padding-bottom:calc(10px + var(--safe-b));
+  display:flex;gap:8px;align-items:flex-end;flex-shrink:0;
+}
+.chat-textarea{
+  flex:1;background:#f3f4f6;border:1px solid var(--border);
+  border-radius:20px;padding:9px 14px;
+  font-family:'Inter',sans-serif;font-size:14px;
+  resize:none;outline:none;max-height:100px;
+  transition:border-color .15s;
+}
+.chat-textarea:focus{border-color:var(--red);background:#fff}
+.chat-send-btn{
+  width:38px;height:38px;border-radius:50%;
+  background:var(--red);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;border:none;cursor:pointer;
+  transition:background .15s;
+}
+.chat-send-btn:disabled{background:#fca5a5}
+.chat-send-btn svg{width:16px;height:16px;stroke:#fff;stroke-width:2.5;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+/* ══ 진료 기관 화면 ══ */
+.search-bar{
+  margin:12px 16px;background:#fff;
+  border:1.5px solid var(--border);border-radius:12px;
+  padding:10px 14px;font-size:14px;width:calc(100% - 32px);
+  font-family:'Inter',sans-serif;outline:none;
+}
+.search-bar:focus{border-color:var(--red)}
+.filter-row{
+  display:flex;gap:6px;padding:0 16px 12px;
+  overflow-x:auto;-webkit-overflow-scrolling:touch;
+}
+.filter-row::-webkit-scrollbar{display:none}
+.f-btn{
+  white-space:nowrap;padding:6px 13px;border-radius:18px;
+  font-size:12px;font-weight:600;
+  border:1.5px solid var(--border);background:#fff;color:#374151;
+  flex-shrink:0;cursor:pointer;
+}
+.f-btn.active{border-color:var(--red);background:var(--red-bg);color:var(--red-dk)}
+
+.fac-card{
+  margin:0 16px 10px;background:#fff;
+  border:1px solid var(--border);border-radius:12px;padding:14px;
+  cursor:pointer;transition:all .15s;
+}
+.fac-card:active{border-color:var(--red)}
+.fac-type{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px}
+.ft-h{color:var(--red-dk)}
+.ft-c{color:var(--blue)}
+.ft-hc{color:var(--green)}
+.fac-name{font-size:15px;font-weight:700;color:#111;margin-bottom:3px}
+.fac-addr{font-size:12px;color:var(--txt3);margin-bottom:8px}
+.fac-row{display:flex;gap:8px;flex-wrap:wrap;font-size:12px;margin-bottom:10px}
+.fac-open{color:var(--green);font-weight:600}
+.fac-btn{
+  width:100%;padding:10px;border-radius:8px;
+  background:var(--red);color:#fff;
+  font-size:13px;font-weight:700;border:none;cursor:pointer;
+}
+
+/* ══ 검진·약·기록 화면 ══ */
+.list-section{padding:12px 16px}
+.list-item{
+  background:#fff;border:1px solid var(--border);
+  border-radius:10px;padding:13px;margin-bottom:8px;
+}
+.li-title{font-size:14px;font-weight:700;color:#111;margin-bottom:3px}
+.li-sub{font-size:12px;color:var(--txt3)}
+.li-badge{
+  display:inline-block;font-size:10px;font-weight:700;
+  padding:2px 7px;border-radius:6px;margin-top:6px;
+}
+.lb-ok{background:var(--green-bg);color:#065f46}
+.lb-warn{background:#fffbeb;color:#92400e}
+.lb-due{background:var(--red-bg);color:var(--red-dk)}
+
+/* ══ 응급 화면 ══ */
+.emergency-hero{
+  background:linear-gradient(135deg,var(--red-dk),#7f1d1d);
+  padding:24px 16px;color:#fff;text-align:center;
+}
+.emergency-big-btn{
+  width:100%;padding:18px;border-radius:12px;
+  background:#fff;color:var(--red-dk);
+  font-size:18px;font-weight:900;border:none;cursor:pointer;
+  margin-top:16px;display:flex;align-items:center;justify-content:center;gap:8px;
+}
+
+/* ══ 하단 탭 바 ══ */
+.tab-bar{
+  background:#fff;border-top:1px solid var(--border);
+  display:flex;padding-bottom:var(--safe-b);
+  flex-shrink:0;z-index:10;
+}
+.tab-item{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  gap:2px;padding:9px 6px;cursor:pointer;
+  font-size:9px;font-weight:600;color:var(--txt3);
+  background:none;border:none;transition:color .15s;
+}
+.tab-item.active{color:var(--red-dk)}
+.tab-icon{font-size:20px;line-height:1}
+.tab-badge{
+  position:absolute;top:6px;right:50%;
+  transform:translateX(10px);
+  background:var(--red);color:#fff;
+  font-size:8px;font-weight:700;border-radius:8px;
+  padding:1px 5px;
+}
+
+/* ══ 토스트 ══ */
+.toast{
+  position:fixed;top:70px;left:16px;right:16px;
+  background:#111;color:#fff;border-radius:10px;
+  padding:12px 16px;font-size:13px;font-weight:500;
+  z-index:9999;opacity:0;transform:translateY(-10px);
+  transition:all .25s;
+}
+.toast.show{opacity:1;transform:translateY(0)}
+
+/* ══ 모달 오버레이 ══ */
+.modal-bg{
+  position:fixed;inset:0;background:rgba(0,0,0,.5);
+  z-index:100;display:none;align-items:flex-end;
+}
+.modal-bg.open{display:flex}
+.modal-sheet{
+  width:100%;background:#fff;
+  border-radius:20px 20px 0 0;padding:24px 16px;
+  padding-bottom:calc(24px + var(--safe-b));
+  max-height:80vh;overflow-y:auto;
+}
+.sheet-handle{
+  width:36px;height:4px;border-radius:2px;
+  background:#d1d5db;margin:0 auto 20px;
+}
+.sheet-title{font-size:17px;font-weight:800;margin-bottom:16px}
+.form-label{font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;display:block}
+.form-input{
+  width:100%;padding:10px 12px;border-radius:8px;
+  border:1.5px solid var(--border);font-family:'Inter',sans-serif;
+  font-size:14px;outline:none;margin-bottom:12px;
+}
+.form-input:focus{border-color:var(--red)}
+.form-select{
+  width:100%;padding:10px 12px;border-radius:8px;
+  border:1.5px solid var(--border);font-family:'Inter',sans-serif;
+  font-size:14px;background:#fff;margin-bottom:12px;
+}
+.sheet-btn{
+  width:100%;padding:13px;border-radius:10px;
+  background:var(--red);color:#fff;
+  font-size:15px;font-weight:700;border:none;cursor:pointer;
+}
+.sheet-btn-ghost{
+  width:100%;padding:12px;border-radius:10px;
+  background:transparent;border:1px solid var(--border);color:#374151;
+  font-size:14px;font-weight:600;cursor:pointer;margin-top:8px;
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ══ 상단 바 ══ -->
+  <div class="topbar" id="main-topbar">
+    <div class="topbar-logo">
+      <div class="topbar-mark">K</div>
+      <span class="topbar-name">K-Health</span>
+    </div>
+    <div class="topbar-right">
+      <button class="emergency-pill" onclick="showScreen('emergency')">
+        🚑 응급
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ 콘텐츠 ══ -->
+  <div class="content" id="content-area">
+
+    <!-- ── 홈 화면 ── -->
+    <div class="screen active" id="screen-home">
+      <!-- 히어로 -->
+      <div class="home-hero">
+        <div class="home-hero-title">안녕하세요 👋 오늘도 건강하게</div>
+        <div class="home-hero-sub">K-Health가 실시간으로 건강 상태를 모니터링합니다</div>
+        <div class="vitals-row">
+          <div class="vital-mini">
+            <div class="vm-val">72</div>
+            <div class="vm-label">❤️ 심박 bpm</div>
+          </div>
+          <div class="vital-mini">
+            <div class="vm-val">36.7°</div>
+            <div class="vm-label">🌡️ 체온 C</div>
+          </div>
+          <div class="vital-mini">
+            <div class="vm-val">118/76</div>
+            <div class="vm-label">🩸 혈압</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI 추천 배너 -->
+      <div style="padding:12px 16px 0">
+        <div class="ai-banner">
+          <div class="ai-banner-icon">🤖</div>
+          <div>
+            <div class="ai-banner-text">오늘 건강 상태는 정상입니다. 6월 7일 내과 진료가 예정되어 있습니다. 혈압 측정이 필요하시면 가까운 보건소를 방문하세요.</div>
+            <button class="ai-banner-btn" onclick="showChatScreen()">K-Health에게 질문하기</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 예약 -->
+      <div class="section-label">📅 다가오는 예약</div>
+      <div class="appt-card">
+        <div class="appt-dot" style="background:var(--red)"></div>
+        <div class="appt-info">
+          <div class="appt-name">서울대병원 — 내과</div>
+          <div class="appt-time">2026.06.07 오전 10:30</div>
+        </div>
+        <span class="appt-status s-confirmed">확정</span>
+      </div>
+      <div class="appt-card">
+        <div class="appt-dot" style="background:var(--orange)"></div>
+        <div class="appt-info">
+          <div class="appt-name">강남구 보건소 — 혈압 측정</div>
+          <div class="appt-time">2026.06.10 오후 2:00</div>
+        </div>
+        <span class="appt-status s-pending">대기</span>
+      </div>
+
+      <!-- 증상 빠른 신고 -->
+      <div class="section-label">🤒 증상 신고</div>
+      <div class="symptom-grid">
+        <button class="symptom-btn" onclick="quickSymptom('발열·오한')">
+          <span class="sb-icon">🌡️</span>
+          <span class="sb-label">발열·오한</span>
+        </button>
+        <button class="symptom-btn" onclick="quickSymptom('두통')">
+          <span class="sb-icon">🤕</span>
+          <span class="sb-label">두통</span>
+        </button>
+        <button class="symptom-btn" onclick="quickSymptom('복통·소화')">
+          <span class="sb-icon">🫃</span>
+          <span class="sb-label">복통·소화</span>
+        </button>
+        <button class="symptom-btn" onclick="quickSymptom('기침·호흡')">
+          <span class="sb-icon">😮‍💨</span>
+          <span class="sb-label">기침·호흡</span>
+        </button>
+        <button class="symptom-btn" onclick="quickSymptom('피부 이상')">
+          <span class="sb-icon">🧴</span>
+          <span class="sb-label">피부 이상</span>
+        </button>
+        <button class="symptom-btn" onclick="quickSymptom('관절·근육통')">
+          <span class="sb-icon">🦴</span>
+          <span class="sb-label">관절·근육통</span>
+        </button>
+      </div>
+      <div style="padding-bottom:16px"></div>
+    </div>
+
+    <!-- ── 진료 기관 화면 ── -->
+    <div class="screen" id="screen-facility">
+      <input type="text" class="search-bar" placeholder="🔍 병원, 의원, 보건소 검색…">
+      <div class="filter-row">
+        <button class="f-btn active" onclick="setFilter('all',this)">전체</button>
+        <button class="f-btn" onclick="setFilter('hospital',this)">🏥 종합병원</button>
+        <button class="f-btn" onclick="setFilter('clinic',this)">🩺 의원</button>
+        <button class="f-btn" onclick="setFilter('health',this)">🏢 보건소</button>
+        <button class="f-btn" onclick="setFilter('emergency',this)">🚑 응급실</button>
+      </div>
+
+      <!-- 보건소 (AI 1순위) -->
+      <div class="fac-card" data-type="health">
+        <div class="fac-type ft-hc">🏢 보건소 · AI 1순위 추천</div>
+        <div class="fac-name">강남구 보건소</div>
+        <div class="fac-addr">📍 서울 강남구 일원로 42 · 0.8km</div>
+        <div class="fac-row">
+          <span class="fac-open">● 영업 중</span>
+          <span>09:00–18:00</span>
+          <span>체온·혈압·혈당 무료</span>
+        </div>
+        <button class="fac-btn" onclick="bookSheet('강남구 보건소')">예약하기</button>
+      </div>
+      <div class="fac-card" data-type="clinic">
+        <div class="fac-type ft-c">🩺 의원</div>
+        <div class="fac-name">서울내과의원</div>
+        <div class="fac-addr">📍 서울 강남구 테헤란로 123 · 1.2km</div>
+        <div class="fac-row">
+          <span class="fac-open">● 영업 중</span>
+          <span>★ 4.8</span>
+        </div>
+        <button class="fac-btn" onclick="bookSheet('서울내과의원')">예약하기</button>
+      </div>
+      <div class="fac-card" data-type="hospital">
+        <div class="fac-type ft-h">🏥 종합병원</div>
+        <div class="fac-name">서울아산병원</div>
+        <div class="fac-addr">📍 서울 송파구 올림픽로 43길 88 · 4.2km</div>
+        <div class="fac-row">
+          <span class="fac-open">● 24시간</span>
+          <span>★ 4.9</span>
+        </div>
+        <button class="fac-btn" onclick="bookSheet('서울아산병원')">예약하기</button>
+      </div>
+      <div class="fac-card" data-type="emergency">
+        <div class="fac-type ft-h">🚑 응급실</div>
+        <div class="fac-name">서울대학교병원 응급센터</div>
+        <div class="fac-addr">📍 서울 종로구 대학로 101 · 5.8km</div>
+        <div class="fac-row">
+          <span class="fac-open">● 24시간</span>
+          <span>대기: 약 45분</span>
+        </div>
+        <button class="fac-btn" style="background:var(--red-dk)" onclick="callEmergency()">🚑 앰뷸런스 요청</button>
+      </div>
+      <div style="padding-bottom:16px"></div>
+    </div>
+
+    <!-- ── 의료 기록 화면 ── -->
+    <div class="screen" id="screen-records">
+      <div class="list-section">
+        <div class="section-label" style="padding:0 0 8px">📋 최근 진료 기록 (PDV 저장)</div>
+        <div class="list-item">
+          <div class="li-title">이비인후과 — 급성 비염</div>
+          <div class="li-sub">우리동네 의원 · 2026.05.28 · 박민준 원장</div>
+          <span class="li-badge lb-ok">완료</span>
+        </div>
+        <div class="list-item">
+          <div class="li-title">내과 — 건강 검진</div>
+          <div class="li-sub">서울대학교병원 · 2026.04.15 · 이준호 교수</div>
+          <span class="li-badge lb-ok">완료</span>
+        </div>
+        <div class="list-item">
+          <div class="li-title">보건소 — 혈압·혈당 측정</div>
+          <div class="li-sub">강남구 보건소 · 2026.03.02</div>
+          <span class="li-badge lb-ok">정상</span>
+        </div>
+        <div class="section-label" style="padding:16px 0 8px">💊 복용 중인 약</div>
+        <div class="list-item">
+          <div class="li-title">상비약: 타이레놀 500mg</div>
+          <div class="li-sub">잔여 8정 · 발열·통증 시 복용</div>
+          <span class="li-badge lb-ok">충분</span>
+        </div>
+        <div class="section-label" style="padding:16px 0 8px">🔬 다가오는 검진</div>
+        <div class="list-item">
+          <div class="li-title">흉부 X-ray</div>
+          <div class="li-sub">예정: 2026.06.12 · D-12</div>
+          <span class="li-badge lb-warn">예약 필요</span>
+        </div>
+        <div class="list-item">
+          <div class="li-title">치과 정기 검진</div>
+          <div class="li-sub">예정: 2026년 6월</div>
+          <span class="li-badge lb-due">이번 달</span>
+        </div>
+        <button class="fac-btn" style="border-radius:10px;margin-top:8px" onclick="showChatScreen()">K-Health에게 기록 분석 요청</button>
+      </div>
+    </div>
+
+    <!-- ── 응급 화면 ── -->
+    <div class="screen" id="screen-emergency">
+      <div class="emergency-hero">
+        <div style="font-size:40px;margin-bottom:8px">🚑</div>
+        <div style="font-size:18px;font-weight:800;margin-bottom:6px">응급 상황</div>
+        <div style="font-size:13px;opacity:.8">생명이 위험하다면 즉시 119에 전화하세요</div>
+        <button class="emergency-big-btn" onclick="callEmergency()">
+          📞 119 연결 / 앰뷸런스
+        </button>
+      </div>
+      <div class="list-section">
+        <div class="section-label" style="padding:0 0 8px">⚠️ 즉시 119에 전화해야 하는 상황</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
+          <span style="background:var(--red-bg);border:1px solid #fca5a5;border-radius:7px;padding:5px 10px;font-size:12px;color:var(--red-dk);font-weight:600">흉통·압박감</span>
+          <span style="background:var(--red-bg);border:1px solid #fca5a5;border-radius:7px;padding:5px 10px;font-size:12px;color:var(--red-dk);font-weight:600">호흡 곤란</span>
+          <span style="background:var(--red-bg);border:1px solid #fca5a5;border-radius:7px;padding:5px 10px;font-size:12px;color:var(--red-dk);font-weight:600">의식 저하</span>
+          <span style="background:var(--red-bg);border:1px solid #fca5a5;border-radius:7px;padding:5px 10px;font-size:12px;color:var(--red-dk);font-weight:600">뇌졸중 의심</span>
+          <span style="background:var(--red-bg);border:1px solid #fca5a5;border-radius:7px;padding:5px 10px;font-size:12px;color:var(--red-dk);font-weight:600">다량 출혈</span>
+        </div>
+        <div class="list-item">
+          <div class="li-title">응급 주요 연락처</div>
+          <div class="li-sub" style="line-height:2">
+            🚑 응급구조: <strong>119</strong><br>
+            👮 경찰: <strong>112</strong><br>
+            🧠 정신건강 위기상담: <strong>1393</strong><br>
+            ☎ 의료상담 콜센터: <strong>1339</strong>
+          </div>
+        </div>
+        <button class="fac-btn" style="border-radius:10px;margin-top:8px" onclick="showChatScreen();sendQuickMsg('응급 상황입니다. 도와주세요.')">
+          🤖 K-Health 응급 상담
+        </button>
+      </div>
+      <div style="padding-bottom:16px"></div>
+    </div>
+
+  </div><!-- /content -->
+
+  <!-- ══ AI 채팅 화면 (전체 오버레이) ══ -->
+  <div class="chat-screen" id="chat-screen">
+    <div class="chat-header">
+      <button class="chat-header-back" onclick="hideChatScreen()">← 닫기</button>
+      <div class="chat-avatar">🩺</div>
+      <div class="chat-header-info">
+        <div class="chat-header-name">K-Health</div>
+        <div class="chat-header-status">24시간 응답</div>
+      </div>
+      <button class="tb-btn tb-btn-ghost" onclick="document.getElementById('mob-file').click()" style="font-size:11px">📎</button>
+      <input type="file" id="mob-file" style="display:none" accept="image/*,.pdf" onchange="handleMobFile(this)">
+    </div>
+    <div class="chat-attach-row">
+      <span>첨부:</span>
+      <button class="attach-btn" onclick="document.getElementById('mob-file').click()">📷 사진</button>
+      <button class="attach-btn" onclick="document.getElementById('mob-file').click()">📄 파일</button>
+      <button class="attach-btn" onclick="openPdvSheet()">🔐 PDV 연동</button>
+    </div>
+    <div class="chat-body" id="mob-chat-body">
+      <div class="bubble-ai">
+        안녕하세요! K-Health입니다. 🩺<br><br>
+        증상, 건강 고민, 병원 추천 등 무엇이든 말씀해 주세요. 사진이나 파일도 첨부할 수 있습니다.<br><br>
+        <em style="font-size:12px;color:var(--txt3)">※ AI 보조 분석 · 최종 진단은 면허 의사에게</em>
+      </div>
+      <div class="quick-btns">
+        <button class="qb" onclick="sendQuickMsg('열이 나요')">🌡️ 열이 나요</button>
+        <button class="qb" onclick="sendQuickMsg('두통이 심해요')">🤕 두통</button>
+        <button class="qb" onclick="sendQuickMsg('가까운 보건소 알려주세요')">🏢 보건소</button>
+        <button class="qb" onclick="sendQuickMsg('응급 상황인 것 같아요')">🚑 응급</button>
+        <button class="qb" onclick="sendQuickMsg('약 상호작용 확인해주세요')">💊 약 확인</button>
+      </div>
+    </div>
+    <div class="chat-input-area">
+      <textarea class="chat-textarea" id="mob-input" rows="1"
+        placeholder="증상을 말씀해 주세요…"
+        oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px'"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();mobChatSend()}"></textarea>
+      <button class="chat-send-btn" id="mob-send-btn" onclick="mobChatSend()">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="m22 2-7 20-4-9-9-4 20-7z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ 탭 바 ══ -->
+  <div class="tab-bar" id="tab-bar">
+    <button class="tab-item active" onclick="showScreen('home',this)">
+      <div class="tab-icon">🏠</div>홈
+    </button>
+    <button class="tab-item" onclick="showChatScreen()">
+      <div class="tab-icon">🤖</div>K-Health
+    </button>
+    <button class="tab-item" onclick="showScreen('facility',this)">
+      <div class="tab-icon">🏥</div>병원 찾기
+    </button>
+    <button class="tab-item" onclick="showScreen('records',this)">
+      <div class="tab-icon">📋</div>기록
+    </button>
+    <button class="tab-item" onclick="showScreen('emergency',this)" style="color:var(--red-dk)">
+      <div class="tab-icon">🚑</div>응급
+    </button>
+  </div>
+
+</div><!-- /app -->
+
+<!-- ══ 예약 바텀 시트 ══ -->
+<div class="modal-bg" id="book-sheet">
+  <div class="modal-sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="book-sheet-title">📅 예약하기</div>
+    <label class="form-label">진료 목적</label>
+    <select class="form-select">
+      <option>증상 진료 (AI 추천)</option>
+      <option>건강 검진</option>
+      <option>예방 접종</option>
+      <option>생체 측정 (혈압·혈당)</option>
+      <option>처방 갱신</option>
+    </select>
+    <label class="form-label">희망 날짜</label>
+    <input type="date" class="form-input" id="mob-book-date">
+    <label class="form-label">희망 시간</label>
+    <select class="form-select">
+      <option>오전 9:00</option><option>오전 9:30</option><option>오전 10:00</option>
+      <option>오전 10:30</option><option>오후 2:00</option><option>오후 3:00</option>
+    </select>
+    <div style="background:#f8f9fa;border-radius:8px;padding:10px;font-size:12px;color:var(--txt3);margin-bottom:12px">
+      📤 예약 확정 시 AI 진단 요약이 의료진에게 자동 전송됩니다.
+    </div>
+    <button class="sheet-btn" onclick="confirmMobBooking()">예약 확정</button>
+    <button class="sheet-btn-ghost" onclick="closeSheet('book-sheet')">취소</button>
+  </div>
+</div>
+
+<!-- ══ PDV 바텀 시트 ══ -->
+<div class="modal-bg" id="pdv-sheet">
+  <div class="modal-sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">🔐 PDV 의료 기록 연동</div>
+    <div style="font-size:14px;color:var(--txt2);line-height:1.7;margin-bottom:16px">
+      K-Health가 PDV에 저장된 의료 기록을 참조합니다.<br>
+      <strong>참조 항목:</strong> 과거 진료, 알레르기, 복용 약물, 만성 질환, 생체 지표
+    </div>
+    <button class="sheet-btn" onclick="grantPdv()">동의하고 연동</button>
+    <button class="sheet-btn-ghost" onclick="closeSheet('pdv-sheet')">이번 대화만 제외</button>
+  </div>
+</div>
+
+<!-- 토스트 -->
+<div class="toast" id="mob-toast"></div>
+
+<script>
+const SYSTEM_PROMPT = `당신은 K-Health입니다. 고팡 생태계 건강 서비스에서 운영됩니다.
+
+핵심 원칙:
+1. 환자 안전 최우선 — 응급 상황(흉통, 호흡곤란, 의식저하, 뇌졸중, 다량출혈) 즉시 119 연결 제안
+2. 확률적 다중 진단 — "가능한 질환: ①위장염(55%) ②식중독(25%) ③기타(20%)" 형식으로 제시
+3. 경증은 보건소 1순위 추천, 중증은 종합병원·응급실, 심각하면 앰뷸런스 연계
+4. 모든 진단에 "최종 진단은 면허 의사에게" 고지
+5. 따뜻하고 명확하게, 의학 용어는 한국어 설명 병기
+
+모바일 환경: 짧고 명확하게 답변. 핵심 먼저.`;
+
+let mobHistory = [];
+
+// ══ 화면 전환 ══
+function showScreen(id, tabEl) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const s = document.getElementById('screen-' + id);
+  if (s) s.classList.add('active');
+  document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+  if (tabEl) tabEl.classList.add('active');
+  document.getElementById('content-area').scrollTop = 0;
+  // 채팅 화면 숨기기
+  document.getElementById('chat-screen').classList.remove('active');
+  document.getElementById('tab-bar').style.display = 'flex';
+}
+
+function showChatScreen() {
+  document.getElementById('chat-screen').classList.add('active');
+  document.getElementById('tab-bar').style.display = 'none';
+  document.getElementById('mob-input').focus();
+}
+
+function hideChatScreen() {
+  document.getElementById('chat-screen').classList.remove('active');
+  document.getElementById('tab-bar').style.display = 'flex';
+}
+
+// ══ 빠른 증상 ══
+function quickSymptom(s) {
+  showChatScreen();
+  setTimeout(() => { document.getElementById('mob-input').value = s + ' 증상이 있어요'; mobChatSend(); }, 100);
+}
+
+function sendQuickMsg(msg) {
+  document.getElementById('mob-input').value = msg;
+  mobChatSend();
+}
+
+// ══ AI 채팅 ══
+async function mobChatSend() {
+  const input = document.getElementById('mob-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = ''; input.style.height = 'auto';
+
+  addMobBubble(msg, 'user');
+  mobHistory.push({role:'user', content: msg});
+
+  const btn = document.getElementById('mob-send-btn');
+  btn.disabled = true;
+
+  // 응급 감지
+  const ekw = ['흉통','호흡 곤란','의식','뇌졸중','응급','쓰러','심장마비','119'];
+  if (ekw.some(k => msg.includes(k))) {
+    const div = document.createElement('div');
+    div.className = 'bubble-emergency';
+    div.innerHTML = `⚠️ <strong>응급 상황으로 판단됩니다.</strong><br><br>
+      지금 바로 119에 전화하거나 아래를 누르세요.<br><br>
+      <button onclick="callEmergency()" style="background:var(--red-dk);color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:700;cursor:pointer;width:100%">🚑 119 / 앰뷸런스 연결</button>`;
+    const body = document.getElementById('mob-chat-body');
+    body.appendChild(div); body.scrollTop = body.scrollHeight;
+    btn.disabled = false; return;
+  }
+
+  const thinkId = addMobBubble('…', 'ai', true);
+
+  try {
+    const msgs = mobHistory.slice(-8).map(m => ({role:m.role, content:m.content}));
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        system: SYSTEM_PROMPT,
+        messages: msgs
+      })
+    });
+    const data = await resp.json();
+    const text = data.content?.find(c => c.type === 'text')?.text || '잠시 후 다시 시도해 주세요.';
+    removeById(thinkId);
+    addMobBubble(text, 'ai');
+    mobHistory.push({role:'assistant', content: text});
+  } catch(e) {
+    removeById(thinkId);
+    addMobBubble('오류가 발생했습니다. 응급 상황이라면 119에 전화하세요.', 'ai');
+  }
+  btn.disabled = false;
+}
+
+let mobBubbleCount = 0;
+function addMobBubble(text, type, temp=false) {
+  const id = 'mb' + (mobBubbleCount++);
+  const body = document.getElementById('mob-chat-body');
+  const div = document.createElement('div');
+  div.id = id;
+  div.className = type === 'user' ? 'bubble-user' : 'bubble-ai';
+  div.innerHTML = text.replace(/\n/g,'<br>');
+  body.appendChild(div);
+  body.scrollTop = body.scrollHeight;
+  return id;
+}
+function removeById(id) { const el = document.getElementById(id); if(el) el.remove(); }
+
+function handleMobFile(input) {
+  const file = input.files[0]; if(!file) return;
+  showChatScreen();
+  addMobBubble('📎 ' + file.name, 'user');
+  setTimeout(() => addMobBubble(`📎 <strong>${file.name}</strong>을(를) 받았습니다.<br>분석 중… 잠시 후 결과를 알려드립니다.<br><em style="font-size:12px;color:var(--txt3)">※ AI 보조 분석</em>`, 'ai'), 700);
+  input.value = '';
+}
+
+// ══ 필터 ══
+function setFilter(type, btn) {
+  document.querySelectorAll('.f-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.fac-card').forEach(c => {
+    c.style.display = (type === 'all' || c.dataset.type === type) ? '' : 'none';
+  });
+}
+
+// ══ 예약 ══
+function bookSheet(name) {
+  document.getElementById('book-sheet-title').textContent = '📅 ' + name + ' 예약';
+  const d = new Date(); d.setDate(d.getDate()+3);
+  document.getElementById('mob-book-date').value = d.toISOString().split('T')[0];
+  document.getElementById('book-sheet').classList.add('open');
+}
+function confirmMobBooking() {
+  closeSheet('book-sheet');
+  showToast('✅ 예약 완료. AI 진단 요약이 의료진에게 전송됩니다.');
+}
+
+// ══ 기타 ══
+function callEmergency() { showToast('🚑 119 연결 중… PDV 의료 기록 전송 중'); }
+function openPdvSheet() { document.getElementById('pdv-sheet').classList.add('open'); }
+function grantPdv() {
+  closeSheet('pdv-sheet');
+  showToast('🔐 PDV 의료 기록이 연동되었습니다.');
+  addMobBubble('PDV 연동 완료! 의료 기록을 참조하여 더 정확한 안내를 드립니다.', 'ai');
+}
+function closeSheet(id) { document.getElementById(id).classList.remove('open'); }
+
+function showToast(msg) {
+  const t = document.getElementById('mob-toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// 초기화
+document.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(location.search);
+  const ctx = params.get('ctx');
+  if (ctx) {
+    showChatScreen();
+    setTimeout(() => sendQuickMsg(decodeURIComponent(ctx)), 300);
+  }
+});
+
+// 시트 외부 터치 닫기
+document.querySelectorAll('.modal-bg').forEach(bg => {
+  bg.addEventListener('click', e => { if(e.target === bg) bg.classList.remove('open'); });
+});
+</script>
+
+</body>
+</html>
