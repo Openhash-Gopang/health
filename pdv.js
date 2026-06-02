@@ -16,12 +16,9 @@ const PROXY   = 'https://gopang-proxy.tensor-city.workers.dev';
 const SVC_ID  = 'health';
 const PDV_VER = '1.0';
 
-// ── 세션에서 사용자 ipv6 추출 ──────────────────────────────
+// ── 세션에서 사용자 ipv6 추출 (subsystem-auth 기반) ────────
 function _getUserIpv6() {
-  try {
-    const s = JSON.parse(sessionStorage.getItem('gopang_sso_token') || 'null');
-    return s?.ipv6 || 'anonymous';
-  } catch { return 'anonymous'; }
+  return window._healthUser?.ipv6 || 'anonymous';
 }
 
 // ── 보고서 해시 (중복 방지) ──────────────────────────────

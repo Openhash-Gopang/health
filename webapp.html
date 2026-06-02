@@ -392,6 +392,7 @@ button{font-family:'Inter',sans-serif;cursor:pointer;border:none}
   font-size:14px;font-weight:600;cursor:pointer;margin-top:8px;
 }
 </style>
+<script type="module" src="https://gopang.net/auth/subsystem-auth.js"></script>
 </head>
 <body>
 
@@ -832,6 +833,7 @@ async function mobChatSend() {
     removeById(thinkId);
     addMobBubble(text, 'ai');
     mobHistory.push({role:'assistant', content: text});
+    _sendHealthPdv(msg, text);
   } catch(e) {
     removeById(thinkId);
     addMobBubble('오류가 발생했습니다. 응급 상황이라면 119에 전화하세요.', 'ai');
@@ -896,6 +898,36 @@ function showToast(msg) {
   const t = document.getElementById('mob-toast');
   t.textContent = msg; t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ══ subsystem-auth 콜백 ══
+let _healthUser = null;
+window._onGopangAuth = function(user) {
+  _healthUser = user;
+  window._healthUser = user;
+  console.log('[K-Health] ✅ 인증 완료 —', user.level, user.ipv6?.slice(-8));
+};
+
+// ══ AI 채팅 완료 후 PDV 기록 ══
+async function _sendHealthPdv(userMsg, aiMsg) {
+  if (!_healthUser?.ipv6) return;
+  try {
+    await fetch('https://gopang-proxy.tensor-city.workers.dev/pdv/report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ report: {
+        svc:  'health',
+        type: 'health_consult',
+        who:  { ipv6: _healthUser.ipv6, role: 'patient', recipients: ['gopang-pdv'] },
+        when: { period_start: new Date().toISOString(), period_end: new Date().toISOString() },
+        where:{ svc_url: location.origin + location.pathname },
+        what: { summary: userMsg.slice(0, 200) },
+        how:  { method: 'K-Health AI 건강 상담', auth_level: _healthUser.level || 'L0' },
+        why:  { goal: '건강 관리 및 최적 진료 기관 연계' },
+      }})
+    });
+    console.log('[K-Health] ✅ PDV 전송 완료');
+  } catch(e) { console.warn('[K-Health] PDV 전송 실패:', e.message); }
 }
 
 // 초기화
