@@ -282,4 +282,3 @@ window.addEventListener('load', () => {
 });
 
 window.PDV = PDV;
-export { PDV };
