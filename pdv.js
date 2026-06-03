@@ -1,27 +1,20 @@
 /**
- * pdv.js — K-Health PDV 기록 모듈 v2.0
+ * pdv.js — K-Traffic PDV 기록 모듈 v2.0
  * gopang-proxy /pdv/report 엔드포인트 연동
  * school/report.js 의 sendToPDV() 패턴 준수
- *
- * PDV 6하원칙:
- *   who   — 사용자 ipv6 (gopang-sso 세션)
- *   when  — 이벤트 발생 시각 + 기간
- *   where — health.gopang.net
- *   what  — 행위 요약
- *   how   — K-Health AI 건강 상담
- *   why   — 건강 관리 + 진료 연계
  */
 
 const PROXY   = 'https://gopang-proxy.tensor-city.workers.dev';
-const SVC_ID  = 'health';
+const SVC_ID  = 'traffic'; // K-Health는 'health'로 변경
 const PDV_VER = '1.0';
 
-// ── 세션에서 사용자 ipv6 추출 (subsystem-auth 기반) ────────
 function _getUserIpv6() {
-  return window._healthUser?.ipv6 || 'anonymous';
+  try {
+    const s = JSON.parse(sessionStorage.getItem('gopang_sso_token') || 'null');
+    return s?.ipv6 || 'anonymous';
+  } catch { return 'anonymous'; }
 }
 
-// ── 보고서 해시 (중복 방지) ──────────────────────────────
 async function _hashReport(obj) {
   const buf = await crypto.subtle.digest(
     'SHA-256', new TextEncoder().encode(JSON.stringify(obj))
@@ -30,7 +23,6 @@ async function _hashReport(obj) {
     .map(b => b.toString(16).padStart(2,'0')).join('');
 }
 
-// ── /pdv/report 전송 (school/report.js sendToPDV 동일 패턴) ──
 async function _sendToPDV(reportPayload) {
   try {
     const res = await fetch(`${PROXY}/pdv/report`, {
@@ -43,30 +35,28 @@ async function _sendToPDV(reportPayload) {
       throw new Error(err.error || `PDV HTTP ${res.status}`);
     }
     const ack = await res.json();
-    console.info('[K-Health PDV] 기록 완료:', ack.pdv_entry);
+    console.info('[K-Traffic PDV] 기록 완료:', ack.pdv_entry);
     return ack;
   } catch(e) {
-    console.warn('[K-Health PDV] 전송 실패 (로컬 백업):', e.message);
+    console.warn('[K-Traffic PDV] 전송 실패 (로컬 백업):', e.message);
     _localBackup(reportPayload);
     return null;
   }
 }
 
-// ── 로컬 백업 (전송 실패 시) ──────────────────────────────
 function _localBackup(payload) {
   try {
-    const key  = 'khealth_pdv_pending';
+    const key  = 'ktraffic_pdv_pending';
     const list = JSON.parse(localStorage.getItem(key) || '[]');
     list.push({ payload, failedAt: new Date().toISOString() });
-    if (list.length > 100) list.splice(0, list.length - 100);
+    if (list.length > 200) list.splice(0, list.length - 200);
     localStorage.setItem(key, JSON.stringify(list));
   } catch {}
 }
 
-// ── 대기 중인 로컬 백업 재전송 ───────────────────────────
 async function _flushPending() {
   try {
-    const key  = 'khealth_pdv_pending';
+    const key  = 'ktraffic_pdv_pending';
     const list = JSON.parse(localStorage.getItem(key) || '[]');
     if (!list.length) return;
     const failed = [];
@@ -79,206 +69,234 @@ async function _flushPending() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// 공개 PDV API
-// ═══════════════════════════════════════════════════════════
-
 const PDV = {
 
   /**
-   * AI 건강 상담 기록
-   * @param {object} opts
-   *   userMsg   — 사용자 메시지 (요약)
-   *   aiMsg     — K-Health 응답 (요약)
-   *   symptoms  — 증상 키워드 배열
-   *   category  — 'consult'|'vitals'|'appointment'|'prescription'|'prognosis'
+   * 이동 요청 기록
+   * @param {object} opts — { from, to, passengers, vehicleType, estimatedGdc }
    */
-  async writeConsult({ userMsg = '', aiMsg = '', symptoms = [], category = 'consult' } = {}) {
+  async writeRideRequest({ from = '', to = '', passengers = 1, vehicleType = '', estimatedGdc = 0 } = {}) {
     const ipv6 = _getUserIpv6();
     const now  = new Date().toISOString();
-    const id   = `RPT-health-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
+    const id   = `RPT-traffic-req-${Date.now()}`;
 
-    const reportPayload = {
+    return _sendToPDV({
       svc:          SVC_ID,
-      type:         `health_${category}`,
+      type:         'traffic_ride_request',
       id,
-      content_hash: await _hashReport({ id, userMsg, aiMsg, symptoms, now }),
+      content_hash: await _hashReport({ id, from, to, now }),
+      who:  { ipv6, role: 'passenger', recipients: ['gopang-pdv'] },
+      when: { generated_at: now, period_start: now, period_end: now },
+      where: { svc_url: 'https://traffic.gopang.net', label: from },
+      what: {
+        summary:       `이동 요청: ${from} → ${to}`,
+        from, to, passengers,
+        vehicle_type:  vehicleType,
+        estimated_gdc: estimatedGdc,
+      },
+      how:  { method: 'K-Traffic AI 동선 겹침 매칭' },
+      why:  { goal: '최적 교통 수단 연결', triggered: 'traffic_ride_request' },
+    });
+  },
 
+  /**
+   * 탑승 시작 기록 (신원 상호 확인 후)
+   * @param {object} opts — { from, to, driverIpv6, vehicleNo, confirmedGdc }
+   */
+  async writeRideStart({ from = '', to = '', driverIpv6 = '', vehicleNo = '', confirmedGdc = 0 } = {}) {
+    const ipv6 = _getUserIpv6();
+    const now  = new Date().toISOString();
+    const id   = `RPT-traffic-start-${Date.now()}`;
+
+    return _sendToPDV({
+      svc:          SVC_ID,
+      type:         'traffic_ride_start',
+      id,
+      content_hash: await _hashReport({ id, from, to, driverIpv6, vehicleNo, now }),
       who: {
         ipv6,
-        role:       'patient',
-        recipients: ['gopang-pdv'],
+        role:         'passenger',
+        counterparty: driverIpv6,  // 운전자 신원 상호 기록
+        recipients:   ['gopang-pdv'],
       },
-      when: {
-        generated_at: now,
-        period_start: now,
-        period_end:   now,
-      },
-      where: {
-        svc_url: 'https://health.gopang.net',
-        label:   'K-Health 건강 상담',
-      },
+      when: { generated_at: now, period_start: now, period_end: now },
+      where: { svc_url: 'https://traffic.gopang.net', label: from },
       what: {
-        summary:  userMsg.slice(0, 200) || `건강 ${category} 기록`,
-        response: aiMsg.slice(0, 300),
-        symptoms,
+        summary:       `탑승 시작: ${from} → ${to} | 차량 ${vehicleNo}`,
+        from, to,
+        vehicle_no:    vehicleNo,
+        driver_ipv6:   driverIpv6,
+        confirmed_gdc: confirmedGdc,
+      },
+      how:  { method: 'PDV 신원 상호 확인 후 탑승 + 실시간 경로 기록' },
+      why:  { goal: '이동 기록 보관 및 범죄·분쟁 예방', triggered: 'traffic_ride_start' },
+    });
+  },
+
+  /**
+   * 탑승 완료 + GDC 결제 기록
+   * @param {object} opts — { from, to, driverIpv6, vehicleNo, gdc, rideId, durationMin }
+   */
+  async writeRideEnd({ from = '', to = '', driverIpv6 = '', vehicleNo = '', gdc = 0, rideId = '', durationMin = 0 } = {}) {
+    const ipv6 = _getUserIpv6();
+    const now  = new Date().toISOString();
+    const id   = `RPT-traffic-end-${Date.now()}`;
+
+    return _sendToPDV({
+      svc:          SVC_ID,
+      type:         'traffic_ride_end',
+      id,
+      content_hash: await _hashReport({ id, rideId, gdc, now }),
+      who: {
+        ipv6,
+        role:         'passenger',
+        counterparty: driverIpv6,
+        recipients:   ['gopang-pdv'],
+      },
+      when: { generated_at: now, period_start: now, period_end: now },
+      where: { svc_url: 'https://traffic.gopang.net', label: to },
+      what: {
+        summary:      `탑승 완료: ${from} → ${to} | ${gdc} GDC 결제`,
+        from, to,
+        vehicle_no:   vehicleNo,
+        driver_ipv6:  driverIpv6,
+        gdc_paid:     gdc,
+        ride_id:      rideId,
+        duration_min: durationMin,
+      },
+      how:  { method: '목적지 도착 확인 → GDC 자동 이체 → PDV 양측 기록' },
+      why:  { goal: 'GDC 결제 증거 보관 및 분쟁 사전 예방', triggered: 'traffic_ride_end' },
+    });
+  },
+
+  /**
+   * 물류·배송 기록
+   * @param {object} opts — { pickupAddr, deliveryAddr, cargoDesc, gdc, deliveryId }
+   */
+  async writeDelivery({ pickupAddr = '', deliveryAddr = '', cargoDesc = '', gdc = 0, deliveryId = '' } = {}) {
+    const ipv6 = _getUserIpv6();
+    const now  = new Date().toISOString();
+    const id   = `RPT-traffic-delivery-${Date.now()}`;
+
+    return _sendToPDV({
+      svc:          SVC_ID,
+      type:         'traffic_delivery',
+      id,
+      content_hash: await _hashReport({ id, deliveryId, gdc, now }),
+      who:  { ipv6, role: 'shipper', recipients: ['gopang-pdv'] },
+      when: { generated_at: now, period_start: now, period_end: now },
+      where: { svc_url: 'https://traffic.gopang.net', label: pickupAddr },
+      what: {
+        summary:       `배송: ${pickupAddr} → ${deliveryAddr} | ${cargoDesc}`,
+        pickup:        pickupAddr,
+        delivery:      deliveryAddr,
+        cargo:         cargoDesc,
+        gdc_paid:      gdc,
+        delivery_id:   deliveryId,
+      },
+      how:  { method: 'K-Traffic AI 화물 차량 매칭 + GDC 자동 결제' },
+      why:  { goal: '물류 기록 보관', triggered: 'traffic_delivery' },
+    });
+  },
+
+  /**
+   * 상호 평가 기록
+   * @param {object} opts — { targetIpv6, targetRole, score, comment, rideId }
+   */
+  async writeRating({ targetIpv6 = '', targetRole = 'driver', score = 5, comment = '', rideId = '' } = {}) {
+    const ipv6 = _getUserIpv6();
+    const now  = new Date().toISOString();
+    const id   = `RPT-traffic-rating-${Date.now()}`;
+
+    return _sendToPDV({
+      svc:          SVC_ID,
+      type:         'traffic_rating',
+      id,
+      content_hash: await _hashReport({ id, targetIpv6, score, rideId, now }),
+      who: {
+        ipv6,
+        role:         'rater',
+        counterparty: targetIpv6,
+        recipients:   ['gopang-pdv'],
+      },
+      when: { generated_at: now, period_start: now, period_end: now },
+      where: { svc_url: 'https://traffic.gopang.net', label: 'K-Traffic 평가' },
+      what: {
+        summary:     `${targetRole} 평가: ${score}점 — ${comment.slice(0,50)}`,
+        target_ipv6: targetIpv6,
+        target_role: targetRole,
+        score, comment,
+        ride_id:     rideId,
+      },
+      how:  { method: 'PDV 기반 위변조 불가 상호 평가' },
+      why:  { goal: '신뢰 점수 구축 및 서비스 품질 향상', triggered: 'traffic_rating' },
+    });
+  },
+
+  /** 긴급 신고 기록 */
+  async writeEmergency({ from = '', description = '', vehicleNo = '', driverIpv6 = '' } = {}) {
+    const ipv6 = _getUserIpv6();
+    const now  = new Date().toISOString();
+    const id   = `RPT-traffic-sos-${Date.now()}`;
+
+    return _sendToPDV({
+      svc:          SVC_ID,
+      type:         'traffic_emergency',
+      id,
+      content_hash: await _hashReport({ id, from, vehicleNo, now }),
+      who: {
+        ipv6,
+        role:         'passenger',
+        counterparty: driverIpv6,
+        recipients:   ['gopang-pdv', '112'],
+      },
+      when: { generated_at: now, period_start: now, period_end: now },
+      where: { svc_url: 'https://traffic.gopang.net', label: from },
+      what: {
+        summary:     `긴급 신고: ${description}`,
+        location:    from,
+        vehicle_no:  vehicleNo,
+        driver_ipv6: driverIpv6,
+        description,
+      },
+      how:  { method: '긴급 버튼 → 112 자동 연결 + PDV 즉시 기록' },
+      why:  { goal: '범죄·사고 증거 보존 및 즉각 대응', triggered: 'traffic_emergency' },
+      analysis: { risk_level: 'critical' },
+    });
+  },
+
+
+  /**
+   * AI 상담 기록 (traffic·health 공통)
+   * @param {object} opts — { userMsg, aiMsg, category, svc }
+   */
+  async writeConsult({ userMsg = '', aiMsg = '', category = 'consult', svc = SVC_ID } = {}) {
+    const ipv6 = _getUserIpv6();
+    const now  = new Date().toISOString();
+    const id   = `RPT-${svc}-consult-${Date.now()}`;
+
+    return _sendToPDV({
+      svc,
+      type:         `${svc}_consult`,
+      id,
+      content_hash: await _hashReport({ id, userMsg, now }),
+      who:  { ipv6, role: 'user', recipients: ['gopang-pdv'] },
+      when: { generated_at: now, period_start: now, period_end: now },
+      where: { svc_url: `https://${svc}.gopang.net`, label: 'AI 상담' },
+      what: {
+        summary:   `AI 상담 (${category}): ${userMsg.slice(0, 60)}`,
+        user_msg:  userMsg,
+        ai_msg:    aiMsg,
         category,
       },
-      how:  { method: 'K-Health AI 건강 상담 + 증상 분석' },
-      why:  { goal: '건강 관리 및 최적 진료 기관 연계', triggered: `health_${category}` },
-    };
-
-    return _sendToPDV(reportPayload);
+      how:  { method: `${svc} AI 채팅` },
+      why:  { goal: 'AI 상담 기록 보관', triggered: `${svc}_consult` },
+    });
   },
 
-  /**
-   * 생체 지표 측정 기록
-   * @param {object} vitals — { temp, heartRate, bloodPressure, oxygen, bloodSugar }
-   * @param {string} source — '보건소'|'스마트워치'|'수동 입력'
-   */
-  async writeVitals({ vitals = {}, source = '수동 입력' } = {}) {
-    const ipv6 = _getUserIpv6();
-    const now  = new Date().toISOString();
-    const id   = `RPT-health-vitals-${Date.now()}`;
-
-    const vitalsSummary = Object.entries(vitals)
-      .map(([k, v]) => `${k}:${v}`).join(', ');
-
-    const reportPayload = {
-      svc:          SVC_ID,
-      type:         'health_vitals',
-      id,
-      content_hash: await _hashReport({ id, vitals, source, now }),
-
-      who:  { ipv6, role: 'patient', recipients: ['gopang-pdv'] },
-      when: { generated_at: now, period_start: now, period_end: now },
-      where: {
-        svc_url: 'https://health.gopang.net',
-        label:   source,
-      },
-      what: {
-        summary: `생체 지표 측정: ${vitalsSummary}`,
-        vitals,
-        source,
-      },
-      how:  { method: `생체 측정 (${source})` },
-      why:  { goal: '건강 상태 모니터링 및 이상 감지', triggered: 'health_vitals' },
-    };
-
-    return _sendToPDV(reportPayload);
-  },
-
-  /**
-   * 진료 예약 기록
-   * @param {object} opts — { facilityName, facilityType, datetime, purpose, aiSummary }
-   */
-  async writeAppointment({ facilityName = '', facilityType = '', datetime = '', purpose = '', aiSummary = '' } = {}) {
-    const ipv6 = _getUserIpv6();
-    const now  = new Date().toISOString();
-    const id   = `RPT-health-appt-${Date.now()}`;
-
-    const reportPayload = {
-      svc:          SVC_ID,
-      type:         'health_appointment',
-      id,
-      content_hash: await _hashReport({ id, facilityName, datetime, purpose, now }),
-
-      who:  { ipv6, role: 'patient', recipients: ['gopang-pdv'] },
-      when: {
-        generated_at:  now,
-        period_start:  datetime || now,
-        period_end:    datetime || now,
-      },
-      where: {
-        svc_url:       'https://health.gopang.net',
-        label:         facilityName,
-        facility_type: facilityType,
-      },
-      what: {
-        summary:    `${facilityName} 진료 예약 — ${purpose}`,
-        facility:   facilityName,
-        purpose,
-        ai_summary: aiSummary,
-      },
-      how:  { method: 'K-Health AI 진료 기관 추천 및 자동 예약' },
-      why:  { goal: '최적 진료 기관 연계 및 사전 브리핑 전달', triggered: 'health_appointment' },
-    };
-
-    return _sendToPDV(reportPayload);
-  },
-
-  /**
-   * 처방 기록 (사람 의사 처방 후)
-   * @param {object} opts — { medications, prescribedBy, pharmacyName }
-   */
-  async writePrescription({ medications = [], prescribedBy = '', pharmacyName = '' } = {}) {
-    const ipv6 = _getUserIpv6();
-    const now  = new Date().toISOString();
-    const id   = `RPT-health-rx-${Date.now()}`;
-
-    const reportPayload = {
-      svc:          SVC_ID,
-      type:         'health_prescription',
-      id,
-      content_hash: await _hashReport({ id, medications, prescribedBy, now }),
-
-      who:  { ipv6, role: 'patient', recipients: ['gopang-pdv'] },
-      when: { generated_at: now, period_start: now, period_end: now },
-      where: {
-        svc_url: 'https://health.gopang.net',
-        label:   prescribedBy,
-      },
-      what: {
-        summary:     `처방: ${medications.map(m => m.name || m).join(', ')}`,
-        medications,
-        prescribed_by: prescribedBy,
-        pharmacy:    pharmacyName,
-      },
-      how:  { method: '면허 의사 처방 → K-Health PDV 기록 → 약국 자동 전송' },
-      why:  { goal: '처방 기록 보관 및 약국 사전 준비', triggered: 'health_prescription' },
-    };
-
-    return _sendToPDV(reportPayload);
-  },
-
-  /**
-   * 예후 추적 기록
-   * @param {object} opts — { appointmentId, status, notes, nextAction }
-   */
-  async writePrognosis({ appointmentId = '', status = '', notes = '', nextAction = '' } = {}) {
-    const ipv6 = _getUserIpv6();
-    const now  = new Date().toISOString();
-    const id   = `RPT-health-prog-${Date.now()}`;
-
-    const reportPayload = {
-      svc:          SVC_ID,
-      type:         'health_prognosis',
-      id,
-      content_hash: await _hashReport({ id, appointmentId, status, now }),
-
-      who:  { ipv6, role: 'patient', recipients: ['gopang-pdv'] },
-      when: { generated_at: now, period_start: now, period_end: now },
-      where: { svc_url: 'https://health.gopang.net', label: 'K-Health 예후 추적' },
-      what: {
-        summary:        `예후 추적: ${status} — ${notes.slice(0, 100)}`,
-        appointment_id: appointmentId,
-        status,
-        notes,
-        next_action:    nextAction,
-      },
-      how:  { method: 'K-Health AI 예후 자동 추적 (1일·3일·1주)' },
-      why:  { goal: '건강 회복 모니터링 및 치료 방향 갱신', triggered: 'health_prognosis' },
-    };
-
-    return _sendToPDV(reportPayload);
-  },
-
-  /** 대기 중인 오프라인 기록 재전송 */
   flushPending: _flushPending,
 };
 
-// 페이지 로드 시 미전송 기록 재시도
-window.addEventListener('load', () => {
-  setTimeout(_flushPending, 3000);
-});
-
+window.addEventListener('load', () => setTimeout(_flushPending, 3000));
 window.PDV = PDV;
+// window.PDV 로 전역 노출됨 (export 불필요 — 일반 <script> 태그 호환)
