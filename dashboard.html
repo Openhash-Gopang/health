@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>K-Health 국가 보건 통합 대시보드 — 보건복지부</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Pretendard:wght@400;500;600;700&display=swap">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<style>
+/* ══ RESET & BASE ══ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f0f2f8;--bg2:#fff;--bg3:#e8ebf4;--bg4:#d8dce8;
+  --txt1:#0a0f1e;--txt2:#3d4560;--txt3:#8892a8;
+  --border:#dde3f0;--border2:#c8d0e4;
+  --c-blue:#1a56db;--c-blue-lt:#e8f0ff;
+  --c-green:#0e9f6e;--c-green-lt:#e0f7f0;
+  --c-red:#c81e1e;--c-red-lt:#fde8e8;
+  --c-amber:#b45309;--c-amber-lt:#fef3c7;
+  --c-purple:#6c2bd9;--c-purple-lt:#ede9fe;
+  --c-teal:#0694a2;--c-teal-lt:#d5f5f6;
+  --c-rose:#e02424;--c-rose-lt:#fde8e8;
+  --mono:'IBM Plex Mono',monospace;
+  --r:8px;--r-sm:5px;--r-lg:12px;
+  --sh:0 1px 3px rgba(10,15,40,.06),0 0 0 0.5px rgba(10,15,40,.06);
+  --sh-md:0 4px 16px rgba(10,15,40,.08),0 0 0 0.5px rgba(10,15,40,.06);
+  --sb-w:56px;
+  --sb-full:240px;
+}
+html,body{height:100%;overflow:hidden;font-family:'Pretendard','Apple SD Gothic Neo',sans-serif;font-size:13px;color:var(--txt1);background:var(--bg);-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+select,input{font-family:inherit}
+
+/* ══ APP SHELL ══ */
+.app{display:grid;grid-template-rows:52px 1fr;grid-template-columns:var(--sb-w) 1fr;height:100vh;overflow:hidden}
+.sidebar{position:absolute;top:52px;left:0;bottom:0;z-index:50;width:var(--sb-w);transition:width .22s ease}
+.sidebar:hover{width:var(--sb-full);box-shadow:4px 0 20px rgba(10,15,40,.12)}
+/* main은 항상 56px 오프셋 유지 */
+.main{grid-column:2;overflow:hidden;display:flex;flex-direction:column}
+
+/* ══ TOPBAR ══ */
+.topbar{grid-column:1/-1;background:var(--bg2);border-bottom:0.5px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:14px;z-index:100;box-shadow:0 1px 0 var(--border)}
+.tb-logo{display:flex;align-items:center;gap:9px}
+.tb-logo-mark{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,#1a56db 0%,#0e9f6e 100%);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.tb-logo-mark i{font-size:14px;color:#fff}
+.tb-logo-text{font-size:14px;font-weight:700;letter-spacing:-.3px}
+.tb-sep{width:0.5px;height:18px;background:var(--border2)}
+.tb-sub{font-size:12px;color:var(--txt3);font-weight:400}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.tb-date{font-size:11px;color:var(--txt3);background:var(--bg3);padding:3px 9px;border-radius:var(--r-sm);border:0.5px solid var(--border)}
+.live-chip{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:var(--c-red-lt);color:var(--c-red);letter-spacing:.02em}
+.live-chip::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--c-red);animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.85)}}
+.clock{font-family:var(--mono);font-size:12px;color:var(--txt2);background:var(--bg3);padding:3px 10px;border-radius:var(--r-sm);border:0.5px solid var(--border);letter-spacing:.04em}
+.tb-btn{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:var(--r-sm);color:var(--txt3);transition:background .12s}
+.tb-btn:hover{background:var(--bg3);color:var(--txt1)}
+.tb-btn i{font-size:16px}
+
+/* ══ SIDEBAR ══ */
+/* 아이콘 컬럼은 항상 56px 고정, 텍스트가 오른쪽으로 펼쳐짐 */
+.sidebar{
+  position:absolute;top:52px;left:0;bottom:0;z-index:50;
+  width:56px;
+  background:var(--bg2);
+  border-right:0.5px solid var(--border);
+  display:flex;flex-direction:column;
+  overflow:hidden;
+  transition:width .22s cubic-bezier(.4,0,.2,1);
+}
+.sidebar:hover{
+  width:248px;
+  box-shadow:4px 0 20px rgba(10,15,40,.1);
+}
+
+/* 헤더 — hover 시만 텍스트 표시 */
+.sb-head{
+  padding:14px 0 10px;
+  border-bottom:0.5px solid var(--border);
+  flex-shrink:0;
+  height:40px;
+  display:flex;align-items:center;
+  overflow:hidden;white-space:nowrap;
+}
+.sb-head-title{
+  font-size:10px;font-weight:700;color:var(--txt3);
+  letter-spacing:.1em;text-transform:uppercase;
+  padding-left:16px;
+  opacity:0;transition:opacity .15s .05s;
+}
+.sidebar:hover .sb-head-title{opacity:1}
+
+/* 스크롤 영역 */
+.sb-scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:8px 0;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.sb-scroll::-webkit-scrollbar{width:3px}
+.sb-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+/* 그룹 레이블 */
+.sb-group-label{
+  height:28px;display:flex;align-items:center;
+  padding-left:18px;
+  font-size:10px;font-weight:700;color:var(--txt3);
+  letter-spacing:.08em;text-transform:uppercase;
+  white-space:nowrap;overflow:hidden;
+}
+.sb-group-label span{
+  opacity:0;transition:opacity .15s .05s;
+}
+.sidebar:hover .sb-group-label span{opacity:1}
+
+/* ── 메뉴 아이템 핵심 ── */
+.sb-item{
+  display:flex;
+  align-items:center;
+  height:40px;
+  padding:0;
+  margin:1px 4px;
+  border-radius:var(--r);
+  font-size:12.5px;
+  color:var(--txt2);
+  cursor:pointer;
+  transition:background .12s,color .12s;
+  position:relative;
+  border:0.5px solid transparent;
+  overflow:hidden;
+  white-space:nowrap;
+  width:48px;           /* 항상 아이콘 너비만 */
+  transition:width .22s cubic-bezier(.4,0,.2,1), background .12s, color .12s;
+}
+.sidebar:hover .sb-item{width:236px}   /* hover 시 전체 너비로 */
+
+.sb-item:hover{background:var(--bg3);color:var(--txt1)}
+.sb-item.active{background:var(--c-blue-lt);color:var(--c-blue);font-weight:600;border-color:#c5d7ff}
+
+/* 아이콘 영역 — 항상 56px 중앙에 고정 */
+.sb-icon-cell{
+  width:48px;height:40px;
+  flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+}
+.sb-icon-cell .icon{width:20px;height:20px}
+.sb-icon-cell .icon svg{width:20px;height:20px;display:block}
+.sb-item.active .sb-icon-cell .icon{color:var(--c-blue)}
+
+/* 텍스트+뱃지 영역 — 아이콘 오른쪽 */
+.sb-text{
+  display:flex;align-items:center;gap:6px;
+  flex:1;min-width:0;
+  opacity:0;
+  transition:opacity .12s .08s;
+  padding-right:8px;
+}
+.sidebar:hover .sb-text{opacity:1}
+.sb-label{flex:1;font-size:12.5px}
+.sb-badge{font-size:9px;font-weight:700;padding:2px 5px;border-radius:3px;letter-spacing:.02em;flex-shrink:0}
+
+/* 푸터 */
+.sb-foot{
+  border-top:0.5px solid var(--border);
+  padding:10px 0;
+  flex-shrink:0;overflow:hidden;white-space:nowrap;
+}
+.sb-stat{
+  display:flex;justify-content:space-between;
+  font-size:10px;color:var(--txt3);margin-bottom:4px;
+  padding:0 16px;
+  opacity:0;transition:opacity .12s .05s;
+}
+.sidebar:hover .sb-stat{opacity:1}
+.sb-stat span:last-child{font-weight:600;color:var(--txt2);font-family:var(--mono)}
+
+/* ══ MAIN ══ */
+/* .main은 위 규칙으로 처리 */
+.panel{display:none;flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border) transparent;flex-direction:column}
+.panel::-webkit-scrollbar{width:4px}
+.panel::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.panel.active{display:flex}
+
+/* ══ FILTER BAR ══ */
+.fbar{background:var(--bg2);border-bottom:0.5px solid var(--border);padding:8px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex-shrink:0;position:sticky;top:0;z-index:20}
+.flabel{font-size:11px;font-weight:500;color:var(--txt3);white-space:nowrap}
+.fbar select,.fbar input[type=date]{font-size:12px;color:var(--txt1);background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--r-sm);padding:4px 8px;outline:none;cursor:pointer}
+.fbar select:hover,.fbar input:hover{border-color:var(--border2)}
+.f-btn{font-size:12px;font-weight:600;padding:4px 14px;border-radius:var(--r-sm);background:var(--c-blue);color:#fff;transition:opacity .12s}
+.f-btn:hover{opacity:.88}
+.f-right{margin-left:auto;display:flex;align-items:center;gap:6px}
+.toggle-group{display:flex;border:0.5px solid var(--border);border-radius:var(--r-sm);overflow:hidden}
+.toggle-group button{padding:4px 10px;font-size:11px;font-weight:500;color:var(--txt3);transition:all .12s}
+.toggle-group button.on{background:var(--c-blue);color:#fff}
+
+/* ══ KPI STRIP ══ */
+.kpi-strip{display:grid;gap:10px;padding:14px 20px;background:var(--bg);flex-shrink:0}
+.kpi-strip.cols5{grid-template-columns:repeat(5,1fr)}
+.kpi-strip.cols4{grid-template-columns:repeat(4,1fr)}
+.kpi-card{background:var(--bg2);border-radius:var(--r-lg);border:0.5px solid var(--border);padding:13px 15px;display:flex;align-items:center;gap:11px;box-shadow:var(--sh)}
+.kpi-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.kpi-icon i{font-size:18px}
+.kpi-val{font-size:19px;font-weight:700;line-height:1;letter-spacing:-.4px}
+.kpi-lbl{font-size:10px;color:var(--txt3);margin-top:3px;font-weight:400}
+.kpi-chg{font-size:10px;font-weight:600;margin-top:2px}
+.kpi-chg.up{color:var(--c-red)}
+.kpi-chg.dn{color:var(--c-green)}
+
+/* ══ CARDS ══ */
+.pad{padding:0 20px 20px;display:flex;flex-direction:column;gap:14px}
+.card{background:var(--bg2);border-radius:var(--r-lg);border:0.5px solid var(--border);box-shadow:var(--sh);overflow:hidden}
+.card-hd{padding:12px 16px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:8px}
+.card-hd i{font-size:15px;color:var(--txt3)}
+.card-title{font-size:13px;font-weight:600;flex:1}
+.card-meta{font-size:11px;color:var(--txt3)}
+.card-bd{padding:14px 16px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+
+/* ══ TABLES ══ */
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{background:var(--bg3);padding:7px 10px;text-align:left;font-weight:600;color:var(--txt2);border-bottom:0.5px solid var(--border);font-size:11px;white-space:nowrap}
+.tbl td{padding:6px 10px;border-bottom:0.5px solid var(--border);color:var(--txt2)}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:var(--bg3)}
+.badge{display:inline-block;font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;white-space:nowrap}
+.pbar{height:6px;background:var(--bg3);border-radius:3px;overflow:hidden}
+.pbar-fill{height:100%;border-radius:3px;transition:width .5s}
+
+/* ══ ALERT BANNER ══ */
+.alert-banner{border-radius:var(--r);padding:9px 14px;display:flex;align-items:center;gap:10px;font-size:12px;margin:14px 20px 0;flex-shrink:0;border:0.5px solid}
+.alert-banner i{font-size:15px;flex-shrink:0}
+
+/* ══ DRILL POPUP ══ */
+.drill{position:fixed;bottom:20px;right:20px;width:270px;background:var(--bg2);border-radius:var(--r-lg);border:0.5px solid var(--border2);box-shadow:var(--sh-md);padding:14px;z-index:200;display:none;animation:sUp .18s ease}
+@keyframes sUp{from{transform:translateY(8px);opacity:0}to{transform:translateY(0);opacity:1}}
+.drill.show{display:block}
+.drill-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.drill-name{font-size:13px;font-weight:700}
+.drill-close{width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:4px;color:var(--txt3)}
+.drill-close:hover{background:var(--bg3)}
+.drill-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.drill-stat{background:var(--bg3);border-radius:var(--r-sm);padding:7px 9px}
+.drill-stat-val{font-size:14px;font-weight:700}
+.drill-stat-lbl{font-size:10px;color:var(--txt3);margin-top:1px}
+
+/* ══ MISC ══ */
+.row-list-item{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:0.5px solid var(--border);font-size:12px}
+.row-list-item:last-child{border-bottom:none}
+.sido-rank{width:20px;font-family:var(--mono);font-size:10px;color:var(--txt3);text-align:center;flex-shrink:0}
+.sido-bar{width:72px;height:5px;background:var(--bg3);border-radius:2px;flex-shrink:0;overflow:hidden}
+.sido-bar-fill{height:100%;background:var(--c-blue);border-radius:2px}
+
+/* ══ ICON SVG ══ */
+.icon{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.icon svg{display:block}
+
+/* 사이드바 아이콘 — 20px, 완전 가운데 */
+.sb-item .icon, .sb-icon{width:20px;height:20px;flex-shrink:0}
+.sb-item .icon svg, .sb-icon svg{width:20px;height:20px}
+.sidebar:not(:hover) .sb-item{justify-content:center}
+
+/* topbar 로고 */
+.tb-logo-mark .icon{width:16px;height:16px}
+.tb-logo-mark .icon svg{width:16px;height:16px}
+
+/* topbar 버튼 */
+.tb-btn .icon{width:18px;height:18px}
+.tb-btn .icon svg{width:18px;height:18px}
+
+/* KPI 카드 아이콘 */
+.kpi-icon .icon{width:20px;height:20px}
+.kpi-icon .icon svg{width:20px;height:20px}
+
+/* 카드 헤더 아이콘 */
+.card-hd .icon{width:16px;height:16px;color:var(--txt3)}
+.card-hd .icon svg{width:16px;height:16px}
+
+/* 인라인 일반 아이콘 */
+.icon-sm{display:inline-flex;align-items:center;justify-content:center}
+.icon-sm svg{width:14px;height:14px;display:block}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ══ TOPBAR ══ -->
+<header class="topbar">
+  <div class="tb-logo">
+    <div class="tb-logo-mark"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h3l2-8 4 16 3-10 2 4h4"/><rect x="2" y="5" width="20" height="14" rx="2"/></svg></span></i></div>
+    <span class="tb-logo-text">K-Health 국가 보건 통합 대시보드</span>
+  </div>
+  <div class="tb-sep"></div>
+  <span class="tb-sub">보건복지부 · 질병관리청 · 국민건강보험공단</span>
+  <div class="tb-right">
+    <div class="live-chip"><span>LIVE</span></div>
+    <div class="clock" id="clock">--:--:--</div>
+    <button class="tb-btn" title="새로고침" onclick="refreshCurrent()"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9A9 9 0 0 1 20.49 15M20.49 15A9 9 0 0 1 3.51 9"/></svg></span></i></button>
+    <button class="tb-btn" title="전체화면" onclick="toggleFull()"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></span></i></button>
+  </div>
+</header>
+
+<!-- ══ SIDEBAR ══ -->
+<nav class="sidebar" aria-label="대시보드 메뉴">
+  <div class="sb-head">
+    <div class="sb-head-title">전국 보건 현황 모니터</div>
+  </div>
+  <div class="sb-scroll">
+    <div class="sb-group-label"><span>전국 현황</span></div>
+    <button class="sb-item active" onclick="switchPanel('p01',this)">
+      <span class="sb-icon-cell"><span class="icon sb-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 18.5L5 21V6l7-3 7 3v6"/><path d="M9 3v18"/><path d="M15 6v6"/><circle cx="17" cy="17" r="3"/><path d="M17 14v3l2 1"/></svg></span></span>
+      <span class="sb-text"><span class="sb-label">환자 발생 현황</span><span class="sb-badge" style="background:var(--c-blue-lt);color:var(--c-blue)">DB-01</span></span>
+    </button>
+    <button class="sb-item" onclick="switchPanel('p02',this)">
+      <span class="sb-icon-cell"><span class="icon sb-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="20" x2="21" y2="20"/><polyline points="5 16 9 10 13 12 17 7 21 11"/></svg></span></span>
+      <span class="sb-text"><span class="sb-label">질병별 발생 추이</span><span class="sb-badge" style="background:var(--c-green-lt);color:var(--c-green)">DB-02</span></span>
+    </button>
+    <button class="sb-item" onclick="switchPanel('p03',this)">
+      <span class="sb-icon-cell"><span class="icon sb-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 20h20z"/><line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="0.5" fill="currentColor"/></svg></span></span>
+      <span class="sb-text"><span class="sb-label">증상 심각도 분포</span><span class="sb-badge" style="background:var(--c-red-lt);color:var(--c-red)">DB-03</span></span>
+    </button>
+    <div class="sb-group-label"><span>의료 자원</span></div>
+    <button class="sb-item" onclick="switchPanel('p04',this)">
+      <span class="sb-icon-cell"><span class="icon sb-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12h6"/><path d="M12 9v6"/></svg></span></span>
+      <span class="sb-text"><span class="sb-label">의료 기관 이용 현황</span><span class="sb-badge" style="background:var(--c-purple-lt);color:var(--c-purple)">DB-04</span></span>
+    </button>
+    <button class="sb-item" onclick="switchPanel('p05',this)">
+      <span class="sb-icon-cell"><span class="icon sb-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="12" y1="9" x2="12" y2="15"/></svg></span></span>
+      <span class="sb-text"><span class="sb-label">처치·처방 현황</span><span class="sb-badge" style="background:var(--c-amber-lt);color:var(--c-amber)">DB-05</span></span>
+    </button>
+    <button class="sb-item" onclick="switchPanel('p06',this)">
+      <span class="sb-icon-cell"><span class="icon sb-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="8" ry="4" transform="rotate(-45 12 12)"/><line x1="8.5" y1="15.5" x2="15.5" y2="8.5"/></svg></span></span>
+      <span class="sb-text"><span class="sb-label">약물 소비 현황</span><span class="sb-badge" style="background:var(--c-teal-lt);color:var(--c-teal)">DB-06</span></span>
+    </button>
+    <div class="sb-group-label"><span>위기 대응</span></div>
+    <button class="sb-item" onclick="switchPanel('p07',this)">
+      <span class="sb-icon-cell"><span class="icon sb-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r=".5" fill="currentColor"/></svg></span></span>
+      <span class="sb-text"><span class="sb-label">공중 보건 위기 모니터링</span><span class="sb-badge" style="background:var(--c-red-lt);color:var(--c-red)">DB-07</span></span>
+    </button>
+  </div>
+  <div class="sb-foot">
+    <div class="sb-stat"><span>데이터 기준</span><span id="sb-time">—</span></div>
+    <div class="sb-stat"><span>갱신 주기</span><span>30초</span></div>
+    <div class="sb-stat"><span>대시보드 상태</span><span style="color:var(--c-green)">정상</span></div>
+  </div>
+</nav>
+
+<!-- ══ MAIN ══ -->
+<main class="main" id="main">
+
+<!-- ─── DB-01: 전국 환자 발생 현황 ─── -->
+<section class="panel active" id="p01" aria-label="전국 환자 발생 현황">
+  <div class="fbar">
+    <span class="flabel">기간</span>
+    <input type="date" id="p01-from">
+    <span class="flabel">~</span>
+    <input type="date" id="p01-to">
+    <span class="flabel">광역시도</span>
+    <select id="p01-sido"><option value="">전체</option></select>
+    <span class="flabel">환자 유형</span>
+    <select id="p01-type">
+      <option value="total">전체</option><option value="newPatients">신규</option>
+      <option value="inpatients">입원</option><option value="outpatients">외래</option>
+      <option value="emergency">응급</option>
+    </select>
+    <button class="f-btn" onclick="initP01()">조회</button>
+    <div class="f-right">
+      <div class="toggle-group">
+        <button class="on" onclick="setUnit('day',this)">일</button>
+        <button onclick="setUnit('week',this)">주</button>
+        <button onclick="setUnit('month',this)">월</button>
+      </div>
+    </div>
+  </div>
+  <div class="kpi-strip cols5" id="p01-kpi"></div>
+  <div class="pad">
+    <div class="g2" style="align-items:start">
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg></span></i><span class="card-title">광역시도별 환자 발생 현황</span><span class="card-meta" id="p01-maptime">—</span></div>
+        <div style="padding:14px 16px">
+          <div id="p01-blocks" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px"></div>
+        </div>
+        <div style="padding:10px 16px;border-top:0.5px solid var(--border);display:flex;align-items:center;gap:10px">
+          <span style="font-size:10px;color:var(--txt3)">적음</span>
+          <div style="flex:1;height:7px;border-radius:3px;background:linear-gradient(to right,#e0f7f0,#0e9f6e,#065f46)"></div>
+          <span style="font-size:10px;color:var(--txt3)">많음</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="card">
+          <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg></span></i><span class="card-title">광역시도 순위</span>
+            <select style="font-size:11px;padding:2px 6px;margin-left:auto;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;outline:none" id="p01-rank-metric" onchange="renderP01SidoList()">
+              <option value="total">전체</option><option value="newPatients">신규</option><option value="emergency">응급</option><option value="bedOccupancy">병상가동률</option>
+            </select>
+          </div>
+          <div id="p01-sido-list" style="padding:6px 14px;max-height:220px;overflow-y:auto"></div>
+        </div>
+        <div class="card">
+          <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="3" x2="12" y2="8"/></svg></span></i><span class="card-title">환자 유형 비율</span></div>
+          <div class="card-bd">
+            <div style="position:relative;height:160px"><canvas id="p01-donut" role="img" aria-label="입원 외래 응급 환자 비율">환자 유형 비율</canvas></div>
+            <div id="p01-donut-leg" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;justify-content:center;font-size:11px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="g3">
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></span></i><span class="card-title">14일 신규 환자 추이</span></div>
+        <div class="card-bd"><div style="position:relative;height:150px"><canvas id="p01-trend" role="img" aria-label="14일 신규 환자 추이">신규 환자 추이</canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12h6"/><path d="M12 9v6"/></svg></span></i><span class="card-title">기관 유형별 내원</span></div>
+        <div class="card-bd"><div style="position:relative;height:150px"><canvas id="p01-fac" role="img" aria-label="기관별 내원 현황">기관별 내원</canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg></span></i><span class="card-title">응급 환자 시간대별</span></div>
+        <div class="card-bd"><div style="position:relative;height:150px"><canvas id="p01-hour" role="img" aria-label="시간대별 응급 환자">시간대별 응급</canvas></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── DB-02: 질병별 발생 추이 ─── -->
+<section class="panel" id="p02" aria-label="질병별 발생 추이">
+  <div class="alert-banner" style="background:#fff8f0;border-color:#fed7aa;color:#9a3412">
+    <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r=".5" fill="currentColor"/></svg></span></i>
+    <div><strong>조기 경보:</strong> 호흡기계 감염(J코드) 지난 2주 대비 <strong>+31.4%</strong> 증가 — 수도권·충청 집중. 감시 강화 권고.</div>
+  </div>
+  <div class="kpi-strip cols5" id="p02-kpi"></div>
+  <div class="pad">
+    <div class="card">
+      <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H3v6l9.5 9.5a2 2 0 0 0 2.8 0l5.2-5.2a2 2 0 0 0 0-2.8L11 3H9v2z"/><circle cx="6.5" cy="8.5" r=".5" fill="currentColor"/><path d="M14 5l5.5 5.5"/></svg></span></i><span class="card-title">ICD-10 질병 대분류별 발생 현황</span></div>
+      <div class="card-bd"><div id="p02-icd-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px" role="list"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="20" x2="21" y2="20"/><polyline points="5 16 9 10 13 12 17 7 21 11"/></svg></span></i><span class="card-title">질병 계열별 주간 발생 추이</span>
+        <div id="p02-tleg" style="display:flex;flex-wrap:wrap;gap:8px;margin-left:auto;font-size:11px"></div>
+      </div>
+      <div class="card-bd"><div style="position:relative;height:240px"><canvas id="p02-trend" role="img" aria-label="질병별 주간 추이">질병별 추이</canvas></div></div>
+    </div>
+    <div class="g2">
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></span></i><span class="card-title">계절성 감염병 현황</span></div>
+        <div class="card-bd">
+          <div id="p02-seasons" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px"></div>
+          <div style="position:relative;height:150px"><canvas id="p02-sea-donut" role="img" aria-label="계절별 감염병 분포">계절별 분포</canvas></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/><line x1="20" y1="3" x2="22" y2="1"/><line x1="4" y1="3" x2="2" y2="1"/></svg></span></i><span class="card-title">조기 경보 목록</span>
+          <span class="badge" style="margin-left:auto;background:var(--c-red-lt);color:var(--c-red)">경보 3건</span>
+        </div>
+        <div class="card-bd" id="p02-alarms"></div>
+      </div>
+    </div>
+    <div class="g3">
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg></span></i><span class="card-title">연령대별 질병 발생</span></div>
+        <div class="card-bd"><div style="position:relative;height:180px"><canvas id="p02-age" role="img" aria-label="연령대별 질병 발생">연령대별</canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1" fill="currentColor"/><circle cx="3" cy="12" r="1" fill="currentColor"/><circle cx="3" cy="18" r="1" fill="currentColor"/></svg></span></i><span class="card-title">다빈도 질병 TOP 10</span></div>
+        <div class="card-bd"><div style="position:relative;height:180px"><canvas id="p02-top10" role="img" aria-label="다빈도 질병 TOP 10">TOP 10</canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="9" x2="21" y2="9"/><polyline points="6 6 3 9 6 12"/><line x1="21" y1="15" x2="3" y2="15"/><polyline points="18 12 21 15 18 18"/></svg></span></i><span class="card-title">전년 동기 대비 증감</span></div>
+        <div class="card-bd"><div style="position:relative;height:180px"><canvas id="p02-yoy" role="img" aria-label="전년 대비 증감">전년 대비</canvas></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── DB-03: 증상 심각도 ─── -->
+<section class="panel" id="p03" aria-label="증상 심각도 분포">
+  <div class="kpi-strip cols5" id="p03-kpi"></div>
+  <div class="pad">
+    <div class="g2">
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="3" x2="12" y2="8"/></svg></span></i><span class="card-title">심각도 4단계 분포</span></div>
+        <div class="card-bd">
+          <div style="position:relative;height:200px"><canvas id="p03-donut" role="img" aria-label="심각도 분포">심각도 분포</canvas></div>
+          <div id="p03-sev-leg" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="4" height="8"/><rect x="9" y="8" width="4" height="12"/><rect x="15" y="4" width="4" height="16"/></svg></span></i><span class="card-title">지역별 응급 환자 비율</span></div>
+        <div class="card-bd"><div style="position:relative;height:260px"><canvas id="p03-emg" role="img" aria-label="지역별 응급 비율">지역별 응급</canvas></div></div>
+      </div>
+    </div>
+    <div class="g3">
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></span></i><span class="card-title">심각도별 주간 추이</span></div>
+        <div class="card-bd"><div style="position:relative;height:180px"><canvas id="p03-trend" role="img" aria-label="심각도별 추이">심각도 추이</canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg></span></i><span class="card-title">연령대별 중증도</span></div>
+        <div class="card-bd"><div style="position:relative;height:180px"><canvas id="p03-age" role="img" aria-label="연령대별 중증도">연령대 중증</canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5a3 3 0 1 0-6 0c0 .9.4 1.7 1 2.3A4 4 0 0 0 4 11a4 4 0 0 0 2 3.5V17a2 2 0 0 0 4 0v-2h4v2a2 2 0 0 0 4 0v-2.5A4 4 0 0 0 20 11a4 4 0 0 0-3-3.7c.6-.6 1-1.4 1-2.3a3 3 0 1 0-6 0"/></svg></span></i><span class="card-title">AI 감별 진단 정확도</span></div>
+        <div class="card-bd" id="p03-ai"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/><line x1="15" y1="9" x2="15" y2="21"/></svg></span></i><span class="card-title">질병별 중증화율 테이블</span></div>
+      <div class="card-bd" style="overflow-x:auto">
+        <table class="tbl"><thead><tr><th>질병명</th><th>전체 환자</th><th>경증</th><th>중등도</th><th>중증</th><th>응급</th><th>중증화율</th><th>사망률</th></tr></thead>
+        <tbody id="p03-tbl"></tbody></table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── DB-04: 의료 기관 이용 현황 ─── -->
+<section class="panel" id="p04" aria-label="의료 기관 이용 현황">
+  <div class="kpi-strip cols5" id="p04-kpi"></div>
+  <div class="pad">
+    <div class="g2">
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="4" height="8"/><rect x="9" y="8" width="4" height="12"/><rect x="15" y="4" width="4" height="16"/></svg></span></i><span class="card-title">기관 유형별 병상 가동률</span></div>
+        <div class="card-bd" id="p04-occ"></div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg></span></i><span class="card-title">기관별 평균 대기 시간</span></div>
+        <div class="card-bd"><div style="position:relative;height:240px"><canvas id="p04-wait" role="img" aria-label="기관별 대기 시간">대기 시간</canvas></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></span></i><span class="card-title">월별 기관 이용 추이</span></div>
+      <div class="card-bd"><div style="position:relative;height:200px"><canvas id="p04-trend" role="img" aria-label="기관 이용 추이">기관 이용 추이</canvas></div></div>
+    </div>
+    <div class="g2">
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="2" x2="22" y2="22"/><path d="M10.6 10.6A3 3 0 1 0 13.4 7"/><path d="M17.9 9.9A7 7 0 0 1 5 7M9 21s-4-5-4-9A7 7 0 0 1 7.4 6.4"/></svg></span></i><span class="card-title">의료 공백 지역</span></div>
+        <div class="card-bd" id="p04-gap"></div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="3" x2="12" y2="8"/></svg></span></i><span class="card-title">보건소 활용도</span></div>
+        <div class="card-bd"><div style="position:relative;height:200px"><canvas id="p04-hc" role="img" aria-label="보건소 활용도">보건소 활용도</canvas></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/><line x1="15" y1="9" x2="15" y2="21"/></svg></span></i><span class="card-title">광역시도별 의료 기관 현황</span></div>
+      <div class="card-bd" style="overflow-x:auto">
+        <table class="tbl"><thead><tr><th>광역시도</th><th>보건소</th><th>의원</th><th>병원</th><th>병상 가동률</th><th>응급실 대기</th><th>의료 접근성</th></tr></thead>
+        <tbody id="p04-tbl"></tbody></table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── DB-05: 처치·처방 현황 ─── -->
+<section class="panel" id="p05" aria-label="처치 및 처방 현황">
+  <div class="kpi-strip cols5" id="p05-kpi"></div>
+  <div class="pad">
+    <div class="g2">
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="20" x2="21" y2="20"/><polyline points="5 16 9 10 13 12 17 7 21 11"/></svg></span></i><span class="card-title">월별 처방 건수 추이</span></div>
+        <div class="card-bd"><div style="position:relative;height:200px"><canvas id="p05-trend" role="img" aria-label="처방 추이">처방 추이</canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="3" x2="12" y2="8"/></svg></span></i><span class="card-title">진료과별 처방 비율</span></div>
+        <div class="card-bd"><div style="position:relative;height:200px"><canvas id="p05-dept" role="img" aria-label="진료과별 처방">진료과별</canvas></div></div>
+      </div>
+    </div>
+    <div class="g3">
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="8" ry="4" transform="rotate(-45 12 12)"/><line x1="8.5" y1="15.5" x2="15.5" y2="8.5"/></svg></span></i><span class="card-title">항생제 처방률</span></div>
+        <div class="card-bd" id="p05-abx"></div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9A9 9 0 0 1 20.49 15M20.49 15A9 9 0 0 1 3.51 9"/></svg></span></i><span class="card-title">재처방률 분석</span></div>
+        <div class="card-bd"><div style="position:relative;height:180px"><canvas id="p05-repx" role="img" aria-label="재처방률">재처방률</canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span></i><span class="card-title">처방일수 분포</span></div>
+        <div class="card-bd"><div style="position:relative;height:180px"><canvas id="p05-days" role="img" aria-label="처방일수">처방일수</canvas></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/><line x1="15" y1="9" x2="15" y2="21"/></svg></span></i><span class="card-title">주요 처방 약물 TOP 20 — 오남용 모니터링</span></div>
+      <div class="card-bd" style="overflow-x:auto">
+        <table class="tbl"><thead><tr><th>#</th><th>약물명</th><th>ATC</th><th>처방 건수</th><th>처방일수</th><th>전월 대비</th><th>위험도</th></tr></thead>
+        <tbody id="p05-tbl"></tbody></table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── DB-06: 약물 소비 현황 ─── -->
+<section class="panel" id="p06" aria-label="약물 소비 현황">
+  <div class="kpi-strip cols5" id="p06-kpi"></div>
+  <div class="pad">
+    <div class="g2">
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="4" height="8"/><rect x="9" y="8" width="4" height="12"/><rect x="15" y="4" width="4" height="16"/></svg></span></i><span class="card-title">ATC 분류별 약물 소비량 (DDD)</span></div>
+        <div class="card-bd"><div style="position:relative;height:240px"><canvas id="p06-atc" role="img" aria-label="ATC별 소비량">ATC별 소비</canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></span></i><span class="card-title">월별 약물 소비 추이</span></div>
+        <div class="card-bd"><div style="position:relative;height:240px"><canvas id="p06-trend" role="img" aria-label="약물 소비 추이">소비 추이</canvas></div></div>
+      </div>
+    </div>
+    <div class="g3">
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4v5c0 5-4 8-8 9-4-1-8-4-8-9V7z"/><rect x="9" y="11" width="6" height="5" rx="1"/><path d="M10 11V9a2 2 0 1 1 4 0v2"/></svg></span></i><span class="card-title">마약류 관리 현황</span></div>
+        <div class="card-bd" id="p06-narc"></div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></span></i><span class="card-title">주요 약물 재고</span></div>
+        <div class="card-bd" id="p06-stock"></div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg></span></i><span class="card-title">지역별 1인당 소비 편차</span></div>
+        <div class="card-bd"><div style="position:relative;height:190px"><canvas id="p06-region" role="img" aria-label="지역별 소비 편차">지역별 편차</canvas></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/><line x1="15" y1="9" x2="15" y2="21"/></svg></span></i><span class="card-title">약물 소비 상세 — ATC 코드 기준</span></div>
+      <div class="card-bd" style="overflow-x:auto">
+        <table class="tbl"><thead><tr><th>ATC</th><th>분류명</th><th>소비량(DDD)</th><th>전월 대비</th><th>전년 대비</th><th>재고 상태</th><th>공급 안정성</th></tr></thead>
+        <tbody id="p06-tbl"></tbody></table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── DB-07: 공중 보건 위기 ─── -->
+<section class="panel" id="p07" aria-label="공중 보건 위기 모니터링">
+  <div class="kpi-strip cols5" id="p07-kpi"></div>
+  <div class="pad">
+    <div id="p07-alert-lv" style="margin-bottom:0"></div>
+    <div class="g2">
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="20" x2="21" y2="20"/><polyline points="5 16 9 10 13 12 17 7 21 11"/></svg></span></i><span class="card-title">감염병 R수치(재생산지수) 추이</span></div>
+        <div class="card-bd"><div style="position:relative;height:220px"><canvas id="p07-r" role="img" aria-label="R수치 추이. 1.0 이상이면 확산">R수치 추이</canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-6.5-6-11a6 6 0 1 1 12 0c0 4.5-6 11-6 11z"/><circle cx="12" cy="10" r="2"/></svg></span></i><span class="card-title">집단 발병 클러스터</span></div>
+        <div class="card-bd" id="p07-cluster"></div>
+      </div>
+    </div>
+    <div class="g3">
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17h2m14 0h2M3 17V8l4-4h10l4 4v9M9 17a2 2 0 1 0 4 0M15 17a2 2 0 1 0-4 0"/><path d="M10 9h4m-2-2v4"/></svg></span></i><span class="card-title">119 출동 현황</span></div>
+        <div class="card-bd" id="p07-ems"></div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m17 3 4 4"/><path d="m5 21 3-3"/><path d="M14 7l-9.5 9.5"/><path d="m7 7 10 10"/><path d="M2 22l4-4"/><path d="M10 4l-1 1 4 4 1-1"/></svg></span></i><span class="card-title">격리·역학 조사</span></div>
+        <div class="card-bd" id="p07-iso"></div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="2" x2="12" y2="7"/><line x1="12" y1="17" x2="12" y2="22"/><line x1="2" y1="12" x2="7" y2="12"/><line x1="17" y1="12" x2="22" y2="12"/><line x1="4.93" y1="4.93" x2="8.46" y2="8.46"/><line x1="15.54" y1="15.54" x2="19.07" y2="19.07"/><line x1="4.93" y1="19.07" x2="8.46" y2="15.54"/><line x1="15.54" y1="8.46" x2="19.07" y2="4.93"/></svg></span></i><span class="card-title">감염병 경보 레이더</span></div>
+        <div class="card-bd"><div style="position:relative;height:190px"><canvas id="p07-radar" role="img" aria-label="감염병 경보 레이더">경보 레이더</canvas></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/><line x1="20" y1="3" x2="22" y2="1"/><line x1="4" y1="3" x2="2" y2="1"/></svg></span></i><span class="card-title">위기 경보 이력 — 최근 30일</span></div>
+      <div class="card-bd" style="overflow-x:auto">
+        <table class="tbl"><thead><tr><th>발령 일시</th><th>감염병</th><th>경보 수준</th><th>발생 지역</th><th>환자 수</th><th>격리 수</th><th>조치 사항</th><th>상태</th></tr></thead>
+        <tbody id="p07-tbl"></tbody></table>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+</div><!-- .app -->
+
+<!-- ── DRILL POPUP ── -->
+<aside class="drill" id="drill" aria-live="polite">
+  <div class="drill-hd">
+    <div class="drill-name" id="drill-name">—</div>
+    <button class="drill-close" onclick="document.getElementById('drill').classList.remove('show')" aria-label="닫기"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></i></button>
+  </div>
+  <div class="drill-grid" id="drill-body"></div>
+</aside>
+
+<script>
+/* ══════════════════════════════════════════════════
+   UTILS
+══════════════════════════════════════════════════ */
+/* ── SVG Icon Map ── */
+const SVG_MAP={
+  'heart-rate-monitor':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h3l2-8 4 16 3-10 2 4h4"/><rect x="2" y="5" width="20" height="14" rx="2"/></svg>',
+  'refresh':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9A9 9 0 0 1 20.49 15M20.49 15A9 9 0 0 1 3.51 9"/></svg>',
+  'users':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg>',
+  'user-plus':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg>',
+  'bed':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v11M21 7v11M3 16h18M3 10h18M8 10V7"/><circle cx="8" cy="5.5" r="1.5"/></svg>',
+  'ambulance':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17h2m14 0h2M3 17V8l4-4h10l4 4v9M9 17a2 2 0 1 0 4 0M15 17a2 2 0 1 0-4 0"/><path d="M10 9h4m-2-2v4"/></svg>',
+  'activity':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
+  'virus':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="2" x2="12" y2="7"/><line x1="12" y1="17" x2="12" y2="22"/><line x1="2" y1="12" x2="7" y2="12"/><line x1="17" y1="12" x2="22" y2="12"/><line x1="4.93" y1="4.93" x2="8.46" y2="8.46"/><line x1="15.54" y1="15.54" x2="19.07" y2="19.07"/><line x1="4.93" y1="19.07" x2="8.46" y2="15.54"/><line x1="15.54" y1="8.46" x2="19.07" y2="4.93"/></svg>',
+  'lungs':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v9"/><path d="M6 16c0 2.5 2 4 4 4s2-1.5 2-4V9c0-2-2-3-4-2S4 10 6 16z"/><path d="M18 16c0 2.5-2 4-4 4s-2-1.5-2-4V9c0-2 2-3 4-2s4 3 2 9z"/></svg>',
+  'heart':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/></svg>',
+  'brain':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5a3 3 0 1 0-6 0c0 .9.4 1.7 1 2.3A4 4 0 0 0 4 11a4 4 0 0 0 2 3.5V17a2 2 0 0 0 4 0v-2h4v2a2 2 0 0 0 4 0v-2.5A4 4 0 0 0 20 11a4 4 0 0 0-3-3.7c.6-.6 1-1.4 1-2.3a3 3 0 1 0-6 0"/></svg>',
+  'shield-check':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4v5c0 5-4 8-8 9-4-1-8-4-8-9V7z"/><polyline points="9 12 11 14 15 10"/></svg>',
+  'prescription':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="12" y1="9" x2="12" y2="15"/></svg>',
+  'pill':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="8" ry="4" transform="rotate(-45 12 12)"/><line x1="8.5" y1="15.5" x2="15.5" y2="8.5"/></svg>',
+  'refresh':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9A9 9 0 0 1 20.49 15"/></svg>',
+  'calendar':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+  'cash':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg>',
+  'building-hospital':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12h6"/><path d="M12 9v6"/></svg>',
+  'shield-lock':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4v5c0 5-4 8-8 9-4-1-8-4-8-9V7z"/><rect x="9" y="11" width="6" height="5" rx="1"/><path d="M10 11V9a2 2 0 1 1 4 0v2"/></svg>',
+  'package':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>',
+  'arrows-exchange':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 16 3 12 7 8"/><line x1="3" y1="12" x2="21" y2="12"/><polyline points="17 8 21 12 17 16"/></svg>',
+  'alert-triangle':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 20h20z"/><line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="17" r="0.5" fill="currentColor"/></svg>',
+  'git-branch':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>',
+  'user-minus':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/><line x1="16" y1="11" x2="22" y2="11"/></svg>',
+  'shield-check':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4v5c0 5-4 8-8 9-4-1-8-4-8-9V7z"/><polyline points="9 12 11 14 15 10"/></svg>',
+  'alert-octagon':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="0.5" fill="currentColor"/></svg>',
+  'map-pin':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-6.5-6-11a6 6 0 1 1 12 0c0 4.5-6 11-6 11z"/><circle cx="12" cy="10" r="2"/></svg>',
+  'map-pin-off':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="2" x2="22" y2="22"/><path d="M10.6 10.6A3 3 0 1 0 13.4 7"/><path d="M9 21s-4-5-4-9"/></svg>',
+  'first-aid-kit':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>',
+  'stethoscope':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v7a6 6 0 0 0 12 0V3"/><path d="M18 16a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/></svg>',
+  'building-plus':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="14" height="18" rx="1"/><path d="M16 9h4M18 7v4"/><line x1="6" y1="9" x2="10" y2="9"/><line x1="6" y1="13" x2="10" y2="13"/></svg>',
+  'star':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3 12 2"/></svg>',
+  'percentage':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="3"/><circle cx="17" cy="17" r="3"/><line x1="3" y1="21" x2="21" y2="3"/></svg>',
+  'bandage':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 18.5l-7-7a2.83 2.83 0 1 1 4-4l7 7"/><path d="M13.5 5.5l7 7a2.83 2.83 0 1 1-4 4l-7-7"/></svg>',
+};
+SVG_MAP['urgent']=SVG_MAP['alert-circle']='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="0.5" fill="currentColor"/></svg>';
+
+function svgIcon(name){
+  const svg=SVG_MAP[name]||SVG_MAP['alert-circle'];
+  return`<span class="icon">${svg}</span>`;
+}
+
+const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+const rndF=(a,b,d=1)=>+((Math.random()*(b-a)+a).toFixed(d));
+const N=n=>n.toLocaleString('ko-KR');
+const nowStr=()=>new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+const mon=i=>{const d=new Date();d.setMonth(d.getMonth()-11+i);return `${d.getMonth()+1}월`;};
+const wk=i=>{const d=new Date();d.setDate(d.getDate()-(23-i)*7);return `${d.getMonth()+1}/${d.getDate()}`;};
+
+const SIDO=[
+  {code:'11',name:'서울특별시',short:'서울'},
+  {code:'26',name:'부산광역시',short:'부산'},
+  {code:'27',name:'대구광역시',short:'대구'},
+  {code:'28',name:'인천광역시',short:'인천'},
+  {code:'29',name:'광주광역시',short:'광주'},
+  {code:'30',name:'대전광역시',short:'대전'},
+  {code:'31',name:'울산광역시',short:'울산'},
+  {code:'36',name:'세종특별자치시',short:'세종'},
+  {code:'41',name:'경기도',short:'경기'},
+  {code:'42',name:'강원특별자치도',short:'강원'},
+  {code:'43',name:'충청북도',short:'충북'},
+  {code:'44',name:'충청남도',short:'충남'},
+  {code:'45',name:'전북특별자치도',short:'전북'},
+  {code:'46',name:'전라남도',short:'전남'},
+  {code:'47',name:'경상북도',short:'경북'},
+  {code:'48',name:'경상남도',short:'경남'},
+  {code:'50',name:'제주특별자치도',short:'제주'},
+];
+const ICD=[
+  {code:'A-B',short:'감염병',name:'감염·기생충 질환',color:'#c81e1e'},
+  {code:'C-D',short:'암',name:'신생물(암)',color:'#b45309'},
+  {code:'E',short:'내분비',name:'내분비·대사 질환',color:'#1a56db'},
+  {code:'F',short:'정신',name:'정신·행동 장애',color:'#6c2bd9'},
+  {code:'G',short:'신경',name:'신경계 질환',color:'#0e9f6e'},
+  {code:'I',short:'순환기',name:'순환기계 질환',color:'#d03801'},
+  {code:'J',short:'호흡기',name:'호흡기계 질환',color:'#057a55'},
+  {code:'K',short:'소화기',name:'소화기계 질환',color:'#c2185b'},
+  {code:'M',short:'근골격',name:'근골격계 질환',color:'#546e7a'},
+  {code:'기타',short:'기타',name:'기타',color:'#90a4ae'},
+];
+const SEV=[
+  {label:'경증',color:'#057a55',bg:'#e0f7f0'},
+  {label:'중등도',color:'#b45309',bg:'#fef3c7'},
+  {label:'중증',color:'#d03801',bg:'#fde8d8'},
+  {label:'응급',color:'#c81e1e',bg:'#fde8e8'},
+];
+const FAC_TYPES=[
+  {name:'보건소·지소',color:'#0e9f6e',icon:'first-aid-kit'},
+  {name:'의원',color:'#1a56db',icon:'stethoscope'},
+  {name:'병원',color:'#6c2bd9',icon:'building-hospital'},
+  {name:'종합병원',color:'#d03801',icon:'building-plus'},
+  {name:'상급종합',color:'#c81e1e',icon:'star'},
+  {name:'응급의료기관',color:'#e02424',icon:'ambulance'},
+];
+const ATC=[
+  {code:'J',name:'항감염제',color:'#c81e1e'},
+  {code:'C',name:'심혈관계',color:'#1a56db'},
+  {code:'A',name:'소화기계',color:'#0e9f6e'},
+  {code:'N',name:'신경계',color:'#6c2bd9'},
+  {code:'M',name:'근골격계',color:'#b45309'},
+  {code:'R',name:'호흡기계',color:'#057a55'},
+  {code:'L',name:'항암제',color:'#d03801'},
+  {code:'기타',name:'기타',color:'#546e7a'},
+];
+const DISEASES=['인플루엔자','COVID-19','노로바이러스','결핵','홍역','수두','유행성이하선염','성홍열'];
+
+/* ══ CHART REGISTRY ══ */
+const CHARTS={};
+function mkChart(id,cfg){if(CHARTS[id])CHARTS[id].destroy();CHARTS[id]=new Chart(document.getElementById(id),cfg);return CHARTS[id];}
+
+/* ══ PANEL SWITCHING ══ */
+const initialized=new Set();
+function switchPanel(pid,btn){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('active'));
+  document.getElementById(pid).classList.add('active');
+  btn.classList.add('active');
+  if(!initialized.has(pid)){initialized.add(pid);INITS[pid]&&INITS[pid]();}
+  document.getElementById('drill').classList.remove('show');
+}
+function refreshCurrent(){
+  const active=document.querySelector('.panel.active');
+  if(active&&INITS[active.id]) INITS[active.id]();
+}
+
+/* ══ PANEL DATA GEN ══ */
+let p01Data=[];
+function genP01(){
+  const base={서울:8500,부산:3200,대구:2400,인천:2800,광주:1400,대전:1500,울산:1100,세종:420,경기:9200,강원:980,충북:870,충남:1100,전북:1050,전남:1020,경북:1400,경남:1980,제주:680};
+  return SIDO.map(r=>{const b=base[r.short]||1000,m=rndF(.8,1.25,3),t=Math.round(b*m);
+    return{...r,total:t,newPatients:Math.round(t*rndF(.12,.18,3)),inpatients:Math.round(t*rndF(.08,.15,3)),outpatients:Math.round(t*rndF(.55,.68,3)),emergency:Math.round(t*rndF(.04,.09,3)),changeRate:rndF(-12,22),bedOccupancy:rndF(58,97)};});
+}
+
+/* ══ P01 ══ */
+function initP01(){
+  p01Data=genP01();
+  // KPI
+  const tot=p01Data.reduce((s,r)=>s+r.total,0);
+  const np=p01Data.reduce((s,r)=>s+r.newPatients,0);
+  const ip=p01Data.reduce((s,r)=>s+r.inpatients,0);
+  const em=p01Data.reduce((s,r)=>s+r.emergency,0);
+  const ab=(p01Data.reduce((s,r)=>s+r.bedOccupancy,0)/p01Data.length).toFixed(1);
+  renderKpi('p01-kpi',[
+    {icon:'users',label:'전체 환자',val:N(tot),chg:rndF(-5,12),color:'#1a56db',bg:'#e8f0ff'},
+    {icon:'user-plus',label:'신규 환자',val:N(np),chg:rndF(-8,18),color:'#0e9f6e',bg:'#e0f7f0'},
+    {icon:'bed',label:'입원 환자',val:N(ip),chg:rndF(-4,9),color:'#6c2bd9',bg:'#ede9fe'},
+    {icon:'ambulance',label:'응급 내원',val:N(em),chg:rndF(0,25),color:'#c81e1e',bg:'#fde8e8'},
+    {icon:'activity',label:'병상 가동률',val:ab+'%',chg:rndF(-3,5),color:'#b45309',bg:'#fef3c7'},
+  ]);
+  renderP01Blocks(); renderP01SidoList(); renderP01Donut(); renderP01Trend(); renderP01Fac(); renderP01Hour();
+  document.getElementById('p01-maptime').textContent='기준: '+nowStr();
+}
+function renderP01Blocks(){
+  const metric=document.getElementById('p01-type').value||'total';
+  const max=Math.max(...p01Data.map(d=>d[metric]||0));
+  const min=Math.min(...p01Data.map(d=>d[metric]||0));
+  const t=v=>{const r=(v-min)/(max-min||1);return `hsl(${150-r*120},${60+r*20}%,${65-r*25}%)`};
+  document.getElementById('p01-blocks').innerHTML=p01Data.map(d=>{
+    const v=d[metric]||0;const chg=d.changeRate;
+    return`<div style="background:${t(v)};border-radius:7px;padding:8px 6px;cursor:pointer;text-align:center" onclick="showDrill('${d.name}',${JSON.stringify(d)})">
+      <div style="font-size:12px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.3)">${d.short}</div>
+      <div style="font-size:10px;color:rgba(255,255,255,.9);margin-top:2px">${N(v)}</div>
+      <div style="font-size:9px;color:rgba(255,255,255,.8)">${chg>=0?'▲':'▼'}${Math.abs(chg).toFixed(1)}%</div>
+    </div>`;
+  }).join('');
+}
+function renderP01SidoList(){
+  const m=document.getElementById('p01-rank-metric').value;
+  const sorted=[...p01Data].sort((a,b)=>(b[m]||0)-(a[m]||0));
+  const maxV=sorted[0]?.[m]||1;
+  const isOcc=m==='bedOccupancy';
+  document.getElementById('p01-sido-list').innerHTML=sorted.map((d,i)=>{
+    const v=d[m]||0;const chg=d.changeRate;
+    return`<div class="row-list-item" style="cursor:pointer" onclick="showDrill('${d.name}',${JSON.stringify(d)})">
+      <span class="sido-rank">${i+1}</span>
+      <span style="flex:1;font-size:12px;font-weight:${i<3?600:400}">${d.short}</span>
+      <div class="sido-bar"><div class="sido-bar-fill" style="width:${Math.round(v/maxV*100)}%"></div></div>
+      <span style="font-family:var(--mono);font-size:11px;min-width:58px;text-align:right">${isOcc?v.toFixed(1)+'%':N(v)}</span>
+      <span style="font-size:9px;font-weight:600;color:${chg>=0?'#c81e1e':'#0e9f6e'}">${chg>=0?'▲':'▼'}${Math.abs(chg).toFixed(1)}%</span>
+    </div>`;
+  }).join('');
+}
+function renderP01Donut(){
+  const ip=p01Data.reduce((s,r)=>s+r.inpatients,0);
+  const op=p01Data.reduce((s,r)=>s+r.outpatients,0);
+  const em=p01Data.reduce((s,r)=>s+r.emergency,0);
+  const tot=ip+op+em;
+  mkChart('p01-donut',{type:'doughnut',data:{labels:['입원','외래','응급'],datasets:[{data:[ip,op,em],backgroundColor:['#6c2bd9','#1a56db','#c81e1e'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${N(ctx.raw)} (${(ctx.raw/tot*100).toFixed(1)}%)`}}}}});
+  const cls=['#6c2bd9','#1a56db','#c81e1e'];const vs=[ip,op,em];const ls=['입원','외래','응급'];
+  document.getElementById('p01-donut-leg').innerHTML=ls.map((l,i)=>`<span style="display:flex;align-items:center;gap:4px;color:var(--txt2)"><span style="width:9px;height:9px;border-radius:2px;background:${cls[i]}"></span>${l} ${(vs[i]/tot*100).toFixed(0)}%</span>`).join('');
+}
+function renderP01Trend(){
+  const labels=Array.from({length:14},(_,i)=>{const d=new Date();d.setDate(d.getDate()-(13-i));return `${d.getMonth()+1}/${d.getDate()}`;});
+  mkChart('p01-trend',{type:'line',data:{labels,datasets:[{label:'신규',data:labels.map(()=>rnd(800,9000)),borderColor:'#1a56db',backgroundColor:'rgba(26,86,219,.07)',fill:true,tension:.4,pointRadius:0,borderWidth:1.8}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{font:{size:9},maxRotation:45,autoSkip:true,maxTicksLimit:7},grid:{display:false}},y:{ticks:{font:{size:9},callback:v=>`${Math.round(v/1000)}k`},grid:{color:'rgba(0,0,0,.04)'}}},plugins:{legend:{display:false}}}});
+}
+function renderP01Fac(){
+  const ls=['보건소','의원','병원','종합병원','상급종합','응급실'];
+  const cl=['#e0f7f0','#e8f0ff','#ede9fe','#fde8d8','#fde8e8','#fde8e8'];
+  const bc=['#0e9f6e','#1a56db','#6c2bd9','#d03801','#c81e1e','#e02424'];
+  mkChart('p01-fac',{type:'bar',data:{labels:ls,datasets:[{data:ls.map(()=>rnd(200,60000)),backgroundColor:cl,borderColor:bc,borderWidth:1,indexAxis:'y'}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',scales:{x:{ticks:{font:{size:9},callback:v=>v>=1000?`${Math.round(v/1000)}k`:v},grid:{color:'rgba(0,0,0,.04)'}},y:{ticks:{font:{size:9}},grid:{display:false}}},plugins:{legend:{display:false}}}});
+}
+function renderP01Hour(){
+  const ls=Array.from({length:24},(_,i)=>`${String(i).padStart(2,'0')}`);
+  const data=ls.map((_,i)=>{if(i<6)return rnd(20,80);if(i<9)return rnd(100,300);if(i<12)return rnd(200,450);if(i<14)return rnd(150,350);if(i<18)return rnd(180,400);if(i<22)return rnd(200,500);return rnd(50,150);});
+  mkChart('p01-hour',{type:'bar',data:{labels:ls,datasets:[{data,backgroundColor:'rgba(200,30,30,.15)',borderColor:'#c81e1e',borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{font:{size:8},autoSkip:true,maxTicksLimit:8},grid:{display:false}},y:{ticks:{font:{size:9}},grid:{color:'rgba(0,0,0,.04)'}}},plugins:{legend:{display:false}}}});
+}
+function showDrill(name,d){
+  document.getElementById('drill-name').textContent=name;
+  document.getElementById('drill-body').innerHTML=[
+    {lbl:'전체 환자',val:N(d.total),c:'#1a56db'},{lbl:'신규 환자',val:N(d.newPatients),c:'#0e9f6e'},
+    {lbl:'입원 환자',val:N(d.inpatients),c:'#6c2bd9'},{lbl:'응급 내원',val:N(d.emergency),c:'#c81e1e'},
+    {lbl:'외래 환자',val:N(d.outpatients),c:'#1a56db'},{lbl:'병상 가동률',val:d.bedOccupancy.toFixed(1)+'%',c:'#b45309'},
+  ].map(s=>`<div class="drill-stat"><div class="drill-stat-val" style="color:${s.c}">${s.val}</div><div class="drill-stat-lbl">${s.lbl}</div></div>`).join('');
+  document.getElementById('drill').classList.add('show');
+}
+
+/* ══ P02 ══ */
+function initP02(){
+  renderKpi('p02-kpi',[
+    {icon:'virus',label:'감염병 신고',val:N(rnd(1200,3500)),chg:rndF(8,32),color:'#c81e1e',bg:'#fde8e8'},
+    {icon:'lungs',label:'호흡기 환자',val:N(rnd(8000,22000)),chg:rndF(-5,28),color:'#057a55',bg:'#e0f7f0'},
+    {icon:'heart',label:'순환기 환자',val:N(rnd(5000,15000)),chg:rndF(-3,8),color:'#d03801',bg:'#fde8d8'},
+    {icon:'brain',label:'정신·신경 환자',val:N(rnd(3000,9000)),chg:rndF(-8,12),color:'#6c2bd9',bg:'#ede9fe'},
+    {icon:'shield-check',label:'예방 접종률',val:rndF(72,94)+'%',chg:rndF(0,5),color:'#0e9f6e',bg:'#e0f7f0'},
+  ]);
+  // ICD chips
+  document.getElementById('p02-icd-grid').innerHTML=ICD.map(g=>{const v=rnd(500,25000);const chg=rndF(-15,35);return`<div role="listitem" style="background:${g.color}15;border-radius:8px;padding:10px;cursor:pointer;border:0.5px solid ${g.color}30" onclick="filterIcd('${g.code}')"><div style="font-size:11px;font-weight:700;color:${g.color}">${g.short}</div><div style="font-size:13px;font-weight:700;color:var(--txt1);margin-top:3px">${N(v)}</div><div style="font-size:9px;color:${chg>=0?'#c81e1e':'#0e9f6e'};margin-top:2px">${chg>=0?'▲':'▼'} ${Math.abs(chg).toFixed(1)}%</div></div>`;}).join('');
+  // Trend
+  const wlabels=Array.from({length:24},(_,i)=>wk(i));
+  mkChart('p02-trend',{type:'line',data:{labels:wlabels,datasets:ICD.slice(0,6).map(g=>({label:g.name,data:Array.from({length:24},()=>rnd(100,5000)),borderColor:g.color,backgroundColor:g.color+'10',fill:true,tension:.4,pointRadius:0,borderWidth:1.6}))},options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{font:{size:9},autoSkip:true,maxTicksLimit:8},grid:{display:false}},y:{ticks:{font:{size:9},callback:v=>`${Math.round(v/1000)}k`},grid:{color:'rgba(0,0,0,.04)'}}},plugins:{legend:{display:false}}}});
+  document.getElementById('p02-tleg').innerHTML=ICD.slice(0,6).map(g=>`<span style="display:flex;align-items:center;gap:4px"><span style="width:9px;height:9px;border-radius:2px;background:${g.color}"></span><span style="font-size:11px;color:var(--txt2)">${g.short}</span></span>`).join('');
+  // Seasons
+  const seas=[{n:'봄',d:'화분증·알레르기',p:22,c:'#057a55'},{n:'여름',d:'장염·식중독',p:31,c:'#c81e1e'},{n:'가을',d:'인플루엔자',p:18,c:'#b45309'},{n:'겨울',d:'독감·노로',p:29,c:'#1a56db'}];
+  document.getElementById('p02-seasons').innerHTML=seas.map(s=>`<div style="background:${s.c}12;border-radius:7px;padding:9px"><div style="font-size:11px;font-weight:700;color:${s.c}">${s.n}</div><div style="height:4px;background:${s.c}30;border-radius:2px;margin:4px 0;overflow:hidden"><div style="width:${s.p}%;height:100%;background:${s.c};border-radius:2px"></div></div><div style="font-size:10px;color:var(--txt3)">${s.d}</div></div>`).join('');
+  mkChart('p02-sea-donut',{type:'doughnut',data:{labels:seas.map(s=>s.n),datasets:[{data:seas.map(s=>s.p),backgroundColor:seas.map(s=>s.c),borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:9,padding:8}}}}});
+  // Alarms
+  const alarms=[{lv:'위험',c:'#c81e1e',bg:'#fde8e8',icon:'alert-octagon',t:'호흡기계 이상 급증 — 경기·충청',s:'J09-J18 범주 주간 +31.4%. 기저질환 노인 집중.',time:'2026-06-03 08:32'},{lv:'주의',c:'#b45309',bg:'#fef3c7',icon:'alert-triangle',t:'식중독 발생 신고 — 여름철 선제 감시',s:'A05 식중독 월간 12건. 학교급식 주의.',time:'2026-06-02 15:10'},{lv:'관심',c:'#1a56db',bg:'#e8f0ff',icon:'info-circle',t:'정신·행동 장애 외래 증가세',s:'F32 우울 에피소드 전년 대비 +18%. 청장년층.',time:'2026-06-01 10:00'}];
+  document.getElementById('p02-alarms').innerHTML=alarms.map(a=>`<div style="background:${a.bg};border:0.5px solid ${a.c}40;border-radius:8px;padding:9px 12px;margin-bottom:8px;display:flex;gap:9px"><span style="color:${a.c};font-size:15px;flex-shrink:0;margin-top:1px;display:inline-flex">${svgIcon(a.icon)}</span><div style="flex:1"><div style="font-size:12px;font-weight:600">${a.t}</div><div style="font-size:11px;color:var(--txt2);margin-top:2px">${a.s}</div><div style="font-size:10px;color:var(--txt3);margin-top:3px;font-family:var(--mono)">${a.time}</div></div><span class="badge" style="background:${a.c};color:#fff;align-self:flex-start">${a.lv}</span></div>`).join('');
+  // Age
+  const ages=['0-9','10-19','20-39','40-59','60-69','70+'];
+  mkChart('p02-age',{type:'bar',data:{labels:ages,datasets:[{data:ages.map(()=>rnd(1000,15000)),backgroundColor:'rgba(108,43,217,.18)',borderColor:'#6c2bd9',borderWidth:1,borderRadius:3,indexAxis:'y'}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',scales:{x:{ticks:{font:{size:9},callback:v=>`${Math.round(v/1000)}k`},grid:{color:'rgba(0,0,0,.04)'}},y:{ticks:{font:{size:9}},grid:{display:false}}},plugins:{legend:{display:false}}}});
+  // Top10
+  const dis10=['급성상기도감염','본태성고혈압','2형당뇨병','요통','위염·십이지장염','무릎관절증','우울에피소드','불안장애','급성기관지염','뇌혈관질환'];
+  mkChart('p02-top10',{type:'bar',data:{labels:dis10,datasets:[{data:dis10.map(()=>rnd(2000,35000)),backgroundColor:dis10.map((_,i)=>`hsl(${210+i*12},65%,${56+i*2}%)`),borderWidth:0,borderRadius:3,indexAxis:'y'}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',scales:{x:{ticks:{font:{size:8},callback:v=>`${Math.round(v/1000)}k`},grid:{color:'rgba(0,0,0,.04)'}},y:{ticks:{font:{size:8}},grid:{display:false}}},plugins:{legend:{display:false}}}});
+  // YoY
+  const gp6=ICD.slice(0,6);const yv=gp6.map(()=>rndF(-12,38));
+  mkChart('p02-yoy',{type:'bar',data:{labels:gp6.map(g=>g.short),datasets:[{data:yv,backgroundColor:yv.map(v=>v>=0?'rgba(200,30,30,.18)':'rgba(14,159,110,.18)'),borderColor:yv.map(v=>v>=0?'#c81e1e':'#0e9f6e'),borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{font:{size:9}},grid:{display:false}},y:{ticks:{font:{size:9},callback:v=>`${v}%`},grid:{color:'rgba(0,0,0,.04)'}}},plugins:{legend:{display:false}}}});
+}
+function filterIcd(code){const g=ICD.find(x=>x.code===code);if(!g)return;mkChart('p02-trend',{type:'line',data:{labels:Array.from({length:24},(_,i)=>wk(i)),datasets:[{label:g.name,data:Array.from({length:24},()=>rnd(100,5000)),borderColor:g.color,backgroundColor:g.color+'10',fill:true,tension:.4,pointRadius:0,borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{font:{size:9},autoSkip:true,maxTicksLimit:8},grid:{display:false}},y:{ticks:{font:{size:9},callback:v=>`${Math.round(v/1000)}k`},grid:{color:'rgba(0,0,0,.04)'}}},plugins:{legend:{display:false}}}});}
+
+/* ══ P03 ══ */
+function initP03(){
+  renderKpi('p03-kpi',[
+    {icon:'bandage',label:'경증 환자',val:N(rnd(30000,60000)),chg:rndF(-5,10),color:'#057a55',bg:'#e0f7f0'},
+    {icon:'stethoscope',label:'중등도',val:N(rnd(15000,30000)),chg:rndF(-3,8),color:'#b45309',bg:'#fef3c7'},
+    {icon:'urgent',label:'중증 환자',val:N(rnd(5000,12000)),chg:rndF(0,15),color:'#d03801',bg:'#fde8d8'},
+    {icon:'ambulance',label:'응급 환자',val:N(rnd(1500,4000)),chg:rndF(2,20),color:'#c81e1e',bg:'#fde8e8'},
+    {icon:'percentage',label:'중증화율',val:rndF(8,18)+'%',chg:rndF(-2,4),color:'#6c2bd9',bg:'#ede9fe'},
+  ]);
+  const vals=[52,28,13,7];
+  mkChart('p03-donut',{type:'doughnut',data:{labels:SEV.map(s=>s.label),datasets:[{data:vals,backgroundColor:SEV.map(s=>s.color),borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:false}}}});
+  document.getElementById('p03-sev-leg').innerHTML=SEV.map((s,i)=>`<div style="background:${s.bg};border-radius:7px;padding:9px 11px"><div style="font-size:11px;font-weight:700;color:${s.color}">${s.label}</div><div style="font-size:17px;font-weight:700;color:${s.color}">${vals[i]}%</div></div>`).join('');
+  const ev=SIDO.map(()=>rndF(3,12));
+  mkChart('p03-emg',{type:'bar',data:{labels:SIDO.map(s=>s.short),datasets:[{data:ev,backgroundColor:ev.map(v=>v>8?'rgba(200,30,30,.22)':'rgba(108,43,217,.15)'),borderColor:ev.map(v=>v>8?'#c81e1e':'#6c2bd9'),borderWidth:1,borderRadius:3,indexAxis:'y'}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',scales:{x:{ticks:{font:{size:9},callback:v=>v+'%'},grid:{color:'rgba(0,0,0,.04)'}},y:{ticks:{font:{size:9}},grid:{display:false}}},plugins:{legend:{display:false}}}});
+  const wl=Array.from({length:12},(_,i)=>wk(i));
+  mkChart('p03-trend',{type:'line',data:{labels:wl,datasets:SEV.map(s=>({label:s.label,data:Array.from({length:12},()=>rnd(50,3000)),borderColor:s.color,backgroundColor:s.color+'10',fill:true,tension:.4,pointRadius:0,borderWidth:1.5}))},options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{font:{size:9}},grid:{display:false}},y:{ticks:{font:{size:9},callback:v=>`${Math.round(v/1000)}k`},grid:{color:'rgba(0,0,0,.04)'}}},plugins:{legend:{display:false}}}});
+  const ag=['0-9','10-19','20-39','40-59','60-69','70+'];
+  mkChart('p03-age',{type:'bar',data:{labels:ag,datasets:[{label:'경증',data:ag.map(()=>rnd(100,5000)),backgroundColor:'rgba(5,122,85,.2)',borderColor:'#057a55',borderWidth:1},{label:'중증',data:ag.map(()=>rnd(50,2000)),backgroundColor:'rgba(200,30,30,.2)',borderColor:'#c81e1e',borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{font:{size:9}},stacked:true,grid:{display:false}},y:{ticks:{font:{size:9}},stacked:true,grid:{color:'rgba(0,0,0,.04)'}}},plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:9,padding:8}}}}});
+  const acs=['1차 진단 일치','2차 이내 일치','오진'];const av=[rndF(72,84),rndF(10,18),rndF(3,8)];const ac_c=['#0e9f6e','#1a56db','#c81e1e'];
+  document.getElementById('p03-ai').innerHTML=acs.map((c,i)=>`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px"><span style="color:var(--txt2)">${c}</span><span style="font-weight:600;color:${ac_c[i]}">${av[i].toFixed(1)}%</span></div><div class="pbar"><div class="pbar-fill" style="width:${av[i]}%;background:${ac_c[i]}"></div></div></div>`).join('')+`<div style="font-size:10px;color:var(--txt3);margin-top:8px;padding:7px;background:var(--bg3);border-radius:6px"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12.01" y2="8"/><polyline points="11 11 12 11 12 16 13 16"/></svg></span></i> PDV 기록 대비 사람 의사 최종 진단 일치율 기준</div>`;
+  const p03dis=['독감','폐렴','심근경색','뇌졸중','당뇨 케톤산증','패혈증','급성신부전','COVID-19','간부전','다발성 외상'];
+  document.getElementById('p03-tbl').innerHTML=p03dis.map(d=>{const t=rnd(500,10000);const m=Math.round(t*.5);const mo=Math.round(t*.28);const sv=Math.round(t*.14);const em=t-m-mo-sv;const sr=((sv+em)/t*100).toFixed(1);const dr=rndF(.1,5);return`<tr><td style="font-weight:500">${d}</td><td>${N(t)}</td><td><span class="badge" style="background:#e0f7f0;color:#065f46">${N(m)}</span></td><td><span class="badge" style="background:#fef3c7;color:#92400e">${N(mo)}</span></td><td><span class="badge" style="background:#fde8d8;color:#9a3412">${N(sv)}</span></td><td><span class="badge" style="background:#fde8e8;color:#9b1c1c">${N(em)}</span></td><td style="font-weight:600;color:${parseFloat(sr)>25?'#c81e1e':'var(--txt2)'}">${sr}%</td><td style="font-family:var(--mono);font-size:11px">${dr.toFixed(2)}%</td></tr>`;}).join('');
+}
+
+/* ══ P04 ══ */
+function initP04(){
+  renderKpi('p04-kpi',[
+    {icon:'building-hospital',label:'전국 의료 기관',val:'95,317개',chg:rndF(0,3),color:'#1a56db',bg:'#e8f0ff'},
+    {icon:'users',label:'일평균 내원',val:N(rnd(1200000,1800000)),chg:rndF(-3,8),color:'#0e9f6e',bg:'#e0f7f0'},
+    {icon:'clock',label:'평균 대기',val:rnd(25,55)+'분',chg:rndF(-10,5),color:'#b45309',bg:'#fef3c7'},
+    {icon:'bed',label:'병상 가동률',val:rndF(72,89)+'%',chg:rndF(-2,4),color:'#6c2bd9',bg:'#ede9fe'},
+    {icon:'map-pin-off',label:'의료 공백 읍면동',val:rnd(120,280)+'개',chg:rndF(-8,3),color:'#c81e1e',bg:'#fde8e8'},
+  ]);
+  document.getElementById('p04-occ').innerHTML=FAC_TYPES.map(t=>{const o=rndF(55,97);return`<div class="row-list-item"><span style="color:${t.color};font-size:15px;flex-shrink:0;display:inline-flex">${svgIcon(t.icon)}</span><div style="flex:1"><div style="font-size:12px;font-weight:500;margin-bottom:4px">${t.name}</div><div class="pbar"><div class="pbar-fill" style="width:${o}%;background:${o>85?'#c81e1e':t.color}"></div></div></div><span style="font-size:13px;font-weight:700;color:${o>85?'#c81e1e':t.color};min-width:42px;text-align:right">${o.toFixed(1)}%</span></div>`;}).join('');
+  mkChart('p04-wait',{type:'bar',data:{labels:FAC_TYPES.map(t=>t.name),datasets:[{data:[rnd(8,20),rnd(20,45),rnd(30,70),rnd(45,90),rnd(60,120),rnd(90,180)],backgroundColor:FAC_TYPES.map(t=>t.color+'28'),borderColor:FAC_TYPES.map(t=>t.color),borderWidth:1,borderRadius:4,indexAxis:'y'}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',scales:{x:{ticks:{font:{size:9},callback:v=>v+'분'},grid:{color:'rgba(0,0,0,.04)'}},y:{ticks:{font:{size:9}},grid:{display:false}}},plugins:{legend:{display:false}}}});
+  const ml=Array.from({length:12},(_,i)=>mon(i));
+  mkChart('p04-trend',{type:'line',data:{labels:ml,datasets:FAC_TYPES.slice(0,4).map(t=>({label:t.name,data:Array.from({length:12},()=>rnd(10000,500000)),borderColor:t.color,backgroundColor:'transparent',tension:.4,pointRadius:0,borderWidth:1.8}))},options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{font:{size:9}},grid:{display:false}},y:{ticks:{font:{size:9},callback:v=>`${Math.round(v/10000)}만`},grid:{color:'rgba(0,0,0,.04)'}}},plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:9,padding:8}}}}});
+  const gaps=[{r:'경북 영양군 석보면',t:'의원 없음',p:1240,rk:'고위험'},{r:'강원 정선군 신동읍',t:'응급실 30km+',p:2800,rk:'고위험'},{r:'전남 신안군 도서',t:'의원 1개소',p:3200,rk:'위험'},{r:'충북 단양군 가곡면',t:'보건지소만',p:980,rk:'관심'}];
+  const rc={'고위험':'#c81e1e','위험':'#b45309','관심':'#1a56db'};const rb={'고위험':'#fde8e8','위험':'#fef3c7','관심':'#e8f0ff'};
+  document.getElementById('p04-gap').innerHTML=gaps.map(g=>`<div class="row-list-item"><span class="icon" style="color:${rc[g.rk]};font-size:15px;flex-shrink:0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="2" x2="22" y2="22"/><path d="M10.6 10.6A3 3 0 1 0 13.4 7"/><path d="M17.9 9.9A7 7 0 0 1 5 7M9 21s-4-5-4-9A7 7 0 0 1 7.4 6.4"/></svg></span></i><div style="flex:1"><div style="font-size:12px;font-weight:500">${g.r}</div><div style="font-size:11px;color:var(--txt3)">${g.t} · 인구 ${N(g.p)}명</div></div><span class="badge" style="background:${rb[g.rk]};color:${rc[g.rk]}">${g.rk}</span></div>`).join('');
+  mkChart('p04-hc',{type:'doughnut',data:{labels:['보건소','의원·병원','응급실'],datasets:[{data:[rndF(18,32),rndF(55,68),rndF(8,15)],backgroundColor:['#0e9f6e','#1a56db','#c81e1e'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:9,padding:8}}}}});
+  document.getElementById('p04-tbl').innerHTML=SIDO.map(s=>{const o=rndF(62,97);return`<tr><td style="font-weight:500">${s.short}</td><td>${rnd(5,220)}</td><td>${N(rnd(500,8000))}</td><td>${rnd(10,380)}</td><td><span class="badge" style="background:${o>88?'#fde8e8':'#e0f7f0'};color:${o>88?'#9b1c1c':'#065f46'}">${o.toFixed(1)}%</span></td><td style="font-family:var(--mono)">${rnd(20,95)}분</td><td><div class="pbar" style="width:80px;display:inline-flex"><div class="pbar-fill" style="width:${rnd(40,95)}%;background:#1a56db"></div></div></td></tr>`;}).join('');
+}
+
+/* ══ P05 ══ */
+function initP05(){
+  renderKpi('p05-kpi',[
+    {icon:'prescription',label:'일일 처방 건수',val:N(rnd(800000,1200000)),chg:rndF(-3,8),color:'#6c2bd9',bg:'#ede9fe'},
+    {icon:'pill',label:'항생제 처방률',val:rndF(22,35)+'%',chg:rndF(-5,3),color:'#c81e1e',bg:'#fde8e8'},
+    {icon:'refresh',label:'재처방률',val:rndF(18,32)+'%',chg:rndF(-4,6),color:'#b45309',bg:'#fef3c7'},
+    {icon:'calendar',label:'평균 처방일수',val:rnd(5,14)+'일',chg:rndF(-2,4),color:'#0e9f6e',bg:'#e0f7f0'},
+    {icon:'cash',label:'비급여 처방률',val:rndF(12,25)+'%',chg:rndF(-3,8),color:'#1a56db',bg:'#e8f0ff'},
+  ]);
+  const ml=Array.from({length:12},(_,i)=>mon(i));
+  mkChart('p05-trend',{type:'line',data:{labels:ml,datasets:[{label:'총 처방',data:ml.map(()=>rnd(700000,1200000)),borderColor:'#6c2bd9',backgroundColor:'rgba(108,43,217,.07)',fill:true,tension:.4,pointRadius:0,borderWidth:2},{label:'항생제',data:ml.map(()=>rnd(150000,350000)),borderColor:'#c81e1e',backgroundColor:'transparent',fill:false,tension:.4,pointRadius:0,borderWidth:1.5}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{font:{size:9}},grid:{display:false}},y:{ticks:{font:{size:9},callback:v=>`${Math.round(v/10000)}만`},grid:{color:'rgba(0,0,0,.04)'}}},plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:9,padding:8}}}}});
+  const DEPTS=[{name:'내과',c:'#1a56db',p:28},{name:'정형외과',c:'#0e9f6e',p:15},{name:'소아과',c:'#057a55',p:12},{name:'정신건강',c:'#6c2bd9',p:10},{name:'이비인후과',c:'#d03801',p:9},{name:'피부과',c:'#c2185b',p:7},{name:'기타',c:'#546e7a',p:19}];
+  mkChart('p05-dept',{type:'doughnut',data:{labels:DEPTS.map(d=>d.name),datasets:[{data:DEPTS.map(d=>d.p),backgroundColor:DEPTS.map(d=>d.c),borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{font:{size:10},boxWidth:9,padding:8}}}}});
+  const abx=[{n:'1차 의원 처방률',v:rndF(35,48),lim:40,w:true},{n:'2차 병원 처방률',v:rndF(22,32),lim:35,w:false},{n:'광대역 항생제 비율',v:rndF(28,42),lim:35,w:true}];
+  document.getElementById('p05-abx').innerHTML=abx.map(it=>`<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px"><span style="color:var(--txt2)">${it.n}</span><span style="font-weight:600;color:${it.w?'#c81e1e':'#0e9f6e'}">${it.v.toFixed(1)}% ${it.w?'⚠':'✓'}</span></div><div class="pbar"><div class="pbar-fill" style="width:${it.v}%;background:${it.w?'#c81e1e':'#0e9f6e'}"></div></div><div style="font-size:10px;color:var(--txt3);margin-top:2px">권고 기준: ${it.lim}% 이하</div></div>`).join('');
+  const repD=['당뇨','고혈압','천식','우울증','갑상선','뇌전증','류마티스','파킨슨'];
+  mkChart('p05-repx',{type:'bar',data:{labels:repD,datasets:[{data:repD.map(()=>rndF(45,92)),backgroundColor:'rgba(108,43,217,.18)',borderColor:'#6c2bd9',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{font:{size:9}},grid:{display:false}},y:{ticks:{font:{size:9},callback:v=>v+'%'},max:100,grid:{color:'rgba(0,0,0,.04)'}}},plugins:{legend:{display:false}}}});
+  const dayL=['1-3일','4-7일','8-14일','15-30일','31-90일','90일+'];
+  mkChart('p05-days',{type:'bar',data:{labels:dayL,datasets:[{data:[rnd(100000,300000),rnd(200000,500000),rnd(150000,400000),rnd(100000,250000),rnd(50000,150000),rnd(20000,80000)],backgroundColor:'rgba(26,86,219,.18)',borderColor:'#1a56db',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{font:{size:9}},grid:{display:false}},y:{ticks:{font:{size:9},callback:v=>`${Math.round(v/10000)}만`},grid:{color:'rgba(0,0,0,.04)'}}},plugins:{legend:{display:false}}}});
+  const drugs=['아목시실린','메트포르민','아토르바스타틴','에스오메프라졸','암로디핀','로사르탄','레보티록신','세티리진','이부프로펜','아세트아미노펜','에날라프릴','란소프라졸','클래리트로마이신','알프라졸람','조피클론','프레드니솔론','인슐린','메살라진','클로피도그렐','아스피린'];
+  const riskC={'낮음':'#e0f7f0,#065f46','보통':'#e8f0ff,#1e40af','높음':'#fef3c7,#92400e','주의':'#fde8e8,#9b1c1c'};const riskK=Object.keys(riskC);
+  document.getElementById('p05-tbl').innerHTML=drugs.map((d,i)=>{const rk=riskK[Math.floor(Math.random()*4)];const [bg,tc]=riskC[rk].split(',');const chg=rndF(-10,20);return`<tr><td style="color:var(--txt3)">${i+1}</td><td style="font-weight:500">${d}</td><td style="font-family:var(--mono);font-size:11px;color:var(--txt3)">ATC ${String.fromCharCode(65+Math.floor(Math.random()*10))}${rnd(10,99)}</td><td>${N(rnd(50000,800000))}</td><td>${rnd(3,90)}일</td><td style="color:${chg>=0?'#c81e1e':'#0e9f6e'};font-weight:600">${chg>=0?'▲':'▼'} ${Math.abs(chg).toFixed(1)}%</td><td><span class="badge" style="background:${bg};color:${tc}">${rk}</span></td></tr>`;}).join('');
+}
+
+/* ══ P06 ══ */
+function initP06(){
+  renderKpi('p06-kpi',[
+    {icon:'pill',label:'총 의약품 소비(DDD)',val:N(rnd(800000,1500000)),chg:rndF(1,8),color:'#6c2bd9',bg:'#ede9fe'},
+    {icon:'shield-lock',label:'마약류 처방 건수',val:N(rnd(50000,120000)),chg:rndF(-5,15),color:'#c81e1e',bg:'#fde8e8'},
+    {icon:'package',label:'재고 부족 품목',val:rnd(12,45)+'개',chg:rndF(-20,10),color:'#b45309',bg:'#fef3c7'},
+    {icon:'arrows-exchange',label:'수입 의존도',val:rndF(62,78)+'%',chg:rndF(-3,4),color:'#1a56db',bg:'#e8f0ff'},
+    {icon:'alert-triangle',label:'이상 소비 감지',val:rnd(3,12)+'건',chg:rndF(-30,50),color:'#c81e1e',bg:'#fde8e8'},
+  ]);
+  mkChart('p06-atc',{type:'bar',data:{labels:ATC.map(a=>`${a.code}: ${a.name}`),datasets:[{data:ATC.map(()=>rnd(20000,200000)),backgroundColor:ATC.map(a=>a.color+'28'),borderColor:ATC.map(a=>a.color),borderWidth:1,borderRadius:4,indexAxis:'y'}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',scales:{x:{ticks:{font:{size:9},callback:v=>`${Math.round(v/1000)}k`},grid:{color:'rgba(0,0,0,.04)'}},y:{ticks:{font:{size:9}},grid:{display:false}}},plugins:{legend:{display:false}}}});
+  const ml=Array.from({length:12},(_,i)=>mon(i));
+  mkChart('p06-trend',{type:'line',data:{labels:ml,datasets:ATC.slice(0,5).map(a=>({label:a.name,data:Array.from({length:12},()=>rnd(5000,100000)),borderColor:a.color,backgroundColor:'transparent',tension:.4,pointRadius:0,borderWidth:1.8}))},options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{font:{size:9}},grid:{display:false}},y:{ticks:{font:{size:9},callback:v=>`${Math.round(v/1000)}k`},grid:{color:'rgba(0,0,0,.04)'}}},plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:9,padding:8}}}}});
+  const narc=[{n:'펜타닐 패치',cl:'마약',v:rnd(2000,8000),chg:rndF(-5,12)},{n:'모르핀 황산염',cl:'마약',v:rnd(1000,4000),chg:rndF(-3,8)},{n:'알프라졸람',cl:'향정신성',v:rnd(50000,150000),chg:rndF(2,18)},{n:'졸피뎀',cl:'향정신성',v:rnd(80000,200000),chg:rndF(5,22)}];
+  document.getElementById('p06-narc').innerHTML=narc.map(d=>`<div class="row-list-item"><span class="badge" style="background:${d.cl==='마약'?'#fde8e8':'#fef3c7'};color:${d.cl==='마약'?'#9b1c1c':'#92400e'}">${d.cl}</span><span style="flex:1;font-size:12px;font-weight:500">${d.n}</span><div style="text-align:right"><div style="font-family:var(--mono);font-size:12px">${N(d.v)}</div><div style="font-size:10px;color:${d.chg>=10?'#c81e1e':d.chg>=5?'#b45309':'var(--txt3)'}">${d.chg>=0?'▲':'▼'}${Math.abs(d.chg).toFixed(1)}%</div></div></div>`).join('');
+  const stock=[{n:'인슐린 (속효성)',s:72},{n:'에피네프린 주사',s:45},{n:'타미플루',s:88},{n:'덱사메타손',s:62},{n:'아지트로마이신',s:31}];
+  document.getElementById('p06-stock').innerHTML=stock.map(d=>`<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span style="color:var(--txt2)">${d.n}</span><span style="font-weight:600;color:${d.s<40?'#c81e1e':d.s<60?'#b45309':'#0e9f6e'}">${d.s}일분</span></div><div class="pbar"><div class="pbar-fill" style="width:${Math.min(d.s,100)}%;background:${d.s<40?'#c81e1e':d.s<60?'#b45309':'#0e9f6e'}"></div></div></div>`).join('');
+  const sido16=SIDO.slice(0,16);
+  mkChart('p06-region',{type:'bar',data:{labels:sido16.map(s=>s.short),datasets:[{data:sido16.map(()=>rndF(80,220)),backgroundColor:'rgba(26,86,219,.18)',borderColor:'#1a56db',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{font:{size:8},maxRotation:45},grid:{display:false}},y:{ticks:{font:{size:9}},grid:{color:'rgba(0,0,0,.04)'}}},plugins:{legend:{display:false}}}});
+  const stK=['정상','주의','부족','입고 예정'];const stbK=['안정','관찰','불안정'];const stC={'정상':'#e0f7f0,#065f46','주의':'#fef3c7,#92400e','부족':'#fde8e8,#9b1c1c','입고 예정':'#e8f0ff,#1e40af'};const stbC={'안정':'#e0f7f0,#065f46','관찰':'#fef3c7,#92400e','불안정':'#fde8e8,#9b1c1c'};
+  document.getElementById('p06-tbl').innerHTML=ATC.map(a=>{const st=stK[Math.floor(Math.random()*4)];const stb=stbK[Math.floor(Math.random()*3)];const[sb,st_]=stC[st].split(',');const[stbb,stbt]=stbC[stb].split(',');const cm=rndF(-10,20);const cy=rndF(-15,25);return`<tr><td style="font-family:var(--mono);font-weight:700;color:${a.color}">${a.code}</td><td>${a.name}</td><td>${N(rnd(10000,200000))}</td><td style="color:${cm>=0?'#c81e1e':'#0e9f6e'};font-weight:600">${cm>=0?'▲':'▼'} ${Math.abs(cm).toFixed(1)}%</td><td style="color:${cy>=0?'#c81e1e':'#0e9f6e'};font-weight:600">${cy>=0?'▲':'▼'} ${Math.abs(cy).toFixed(1)}%</td><td><span class="badge" style="background:${sb};color:${st_}">${st}</span></td><td><span class="badge" style="background:${stbb};color:${stbt}">${stb}</span></td></tr>`;}).join('');
+}
+
+/* ══ P07 ══ */
+function initP07(){
+  renderKpi('p07-kpi',[
+    {icon:'virus',label:'신고 감염병',val:N(rnd(800,3500)),chg:rndF(5,32),color:'#c81e1e',bg:'#fde8e8'},
+    {icon:'git-branch',label:'집단 발병 클러스터',val:rnd(8,35)+'건',chg:rndF(-10,40),color:'#d03801',bg:'#fde8d8'},
+    {icon:'user-minus',label:'격리자 수',val:N(rnd(500,5000)),chg:rndF(-20,50),color:'#c81e1e',bg:'#fde8e8'},
+    {icon:'ambulance',label:'관련 119 출동',val:N(rnd(200,800)),chg:rndF(0,25),color:'#b45309',bg:'#fef3c7'},
+    {icon:'shield-check',label:'역학 조사 진행',val:rnd(15,80)+'건',chg:rndF(-15,30),color:'#1a56db',bg:'#e8f0ff'},
+  ]);
+  const lvs=['관심','주의','경계','심각'];const lv=lvs[Math.floor(Math.random()*4)];const lvc={'관심':'#1a56db,#e8f0ff','주의':'#b45309,#fef3c7','경계':'#d03801,#fde8d8','심각':'#c81e1e,#fde8e8'};const[tc,bg]=lvc[lv].split(',');
+  document.getElementById('p07-alert-lv').innerHTML=`<div style="background:${bg};border:0.5px solid ${tc}40;border-radius:var(--r);padding:10px 16px;display:flex;align-items:center;gap:12px"><span class="icon" style="font-size:20px;color:${tc}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r=".5" fill="currentColor"/></svg></span></i><div><div style="font-size:13px;font-weight:700;color:${tc}">현재 보건 위기 경보 수준: ${lv}</div><div style="font-size:12px;color:var(--txt2);margin-top:2px">호흡기 감염병 모니터링 강화 · 지자체 보건당국 협조 요청 · 의료기관 감시 체계 가동</div></div><div style="margin-left:auto;font-family:var(--mono);font-size:11px;color:${tc}">${nowStr()} 기준</div></div>`;
+  const wl=Array.from({length:12},(_,i)=>wk(i));
+  mkChart('p07-r',{type:'line',data:{labels:wl,datasets:[{label:'인플루엔자',data:wl.map(()=>rndF(.7,1.8,2)),borderColor:'#c81e1e',tension:.4,pointRadius:2,borderWidth:2},{label:'COVID-19',data:wl.map(()=>rndF(.6,1.4,2)),borderColor:'#1a56db',tension:.4,pointRadius:2,borderWidth:2},{label:'노로바이러스',data:wl.map(()=>rndF(.5,1.2,2)),borderColor:'#0e9f6e',tension:.4,pointRadius:2,borderWidth:1.5}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{font:{size:9}},grid:{display:false}},y:{min:0,max:2.5,ticks:{font:{size:9}},grid:{color:'rgba(0,0,0,.04)'}}},plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:9,padding:8}}}}});
+  const cl=[{r:'경기 수원시',d:'인플루엔자A',n:rnd(20,200),src:'어린이집'},{r:'서울 강남구',d:'노로바이러스',n:rnd(15,80),src:'음식점'},{r:'인천 연수구',d:'COVID-19',n:rnd(10,120),src:'직장'},{r:'부산 해운대구',d:'수두',n:rnd(12,60),src:'초등학교'},{r:'충북 청주시',d:'유행성이하선염',n:rnd(8,40),src:'대학교'}];
+  document.getElementById('p07-cluster').innerHTML=cl.map(c=>`<div class="row-list-item"><span class="icon" style="color:#c81e1e;font-size:15px;flex-shrink:0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-6.5-6-11a6 6 0 1 1 12 0c0 4.5-6 11-6 11z"/><circle cx="12" cy="10" r="2"/></svg></span></i><div style="flex:1"><div style="font-size:12px;font-weight:600">${c.r} — ${c.d}</div><div style="font-size:11px;color:var(--txt3)">발생원: ${c.src}</div></div><span class="badge" style="background:#fde8e8;color:#9b1c1c">${c.n}명</span></div>`).join('');
+  document.getElementById('p07-ems').innerHTML=`<div style="font-size:24px;font-weight:700;color:#c81e1e;margin-bottom:8px">${N(rnd(200,800))}</div><div style="font-size:11px;color:var(--txt3);margin-bottom:12px">오늘 누적 출동 건수</div>`+['감염병 의심','고열·호흡 곤란','집단 발병 현장','격리 이송'].map(c=>`<div class="row-list-item" style="font-size:11px"><span style="flex:1">${c}</span><span style="font-family:var(--mono);font-weight:600;color:#c81e1e">${rnd(10,150)}건</span></div>`).join('');
+  document.getElementById('p07-iso').innerHTML=[{l:'격리자 (총)',v:N(rnd(500,5000)),c:'#c81e1e'},{l:'자가 격리',v:N(rnd(400,4500)),c:'#b45309'},{l:'시설 격리',v:N(rnd(50,500)),c:'#6c2bd9'},{l:'역학 조사 진행',v:rnd(15,80)+'건',c:'#1a56db'},{l:'접촉자 추적',v:N(rnd(1000,8000))+'명',c:'#0e9f6e'}].map(s=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid var(--border)"><span style="font-size:11px;color:var(--txt2)">${s.l}</span><span style="font-size:13px;font-weight:700;color:${s.c}">${s.v}</span></div>`).join('');
+  mkChart('p07-radar',{type:'radar',data:{labels:DISEASES.slice(0,6),datasets:[{label:'이번 주',data:DISEASES.slice(0,6).map(()=>rnd(10,90)),borderColor:'#c81e1e',backgroundColor:'rgba(200,30,30,.1)',pointRadius:3,borderWidth:1.5},{label:'지난 주',data:DISEASES.slice(0,6).map(()=>rnd(10,90)),borderColor:'#1a56db',backgroundColor:'rgba(26,86,219,.08)',pointRadius:3,borderWidth:1.2}]},options:{responsive:true,maintainAspectRatio:false,scales:{r:{ticks:{display:false},grid:{color:'rgba(0,0,0,.08)'},pointLabels:{font:{size:9}},min:0,max:100}},plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:9,padding:8}}}}});
+  const lvls=['관심','주의','경계','심각'];const stts=['진행 중','종료','관찰'];const lvC={'관심':'#e8f0ff,#1e40af','주의':'#fef3c7,#92400e','경계':'#fde8d8,#9a3412','심각':'#fde8e8,#9b1c1c'};const stC={'진행 중':'#fde8e8,#9b1c1c','종료':'#e0f7f0,#065f46','관찰':'#fef3c7,#92400e'};
+  document.getElementById('p07-tbl').innerHTML=Array.from({length:8},(_,i)=>{const l=lvls[Math.floor(Math.random()*4)];const st=stts[Math.floor(Math.random()*3)];const[lb,lt]=lvC[l].split(',');const[sb,st_]=stC[st].split(',');const d=new Date();d.setDate(d.getDate()-rnd(0,29));return`<tr><td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${d.toLocaleDateString('ko-KR')} ${rnd(0,23).toString().padStart(2,'0')}:${rnd(0,59).toString().padStart(2,'0')}</td><td style="font-weight:500">${DISEASES[i%8]}</td><td><span class="badge" style="background:${lb};color:${lt}">${l}</span></td><td>${['수도권','영남권','호남권','충청권','강원'][Math.floor(Math.random()*5)]}</td><td>${N(rnd(5,2000))}</td><td>${N(rnd(10,5000))}</td><td style="font-size:11px">방역 조치·감시 강화</td><td><span class="badge" style="background:${sb};color:${st_}">${st}</span></td></tr>`;}).join('');
+}
+
+/* ══ SHARED ══ */
+function renderKpi(id,items){
+  document.getElementById(id).innerHTML=items.map(k=>`
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:${k.bg};color:${k.color}">${svgIcon(k.icon)}</div>
+      <div>
+        <div class="kpi-val" style="color:${k.color}">${k.val}</div>
+        <div class="kpi-lbl">${k.label}</div>
+        <div class="kpi-chg ${k.chg>=0?'up':'dn'}">${k.chg>=0?'▲':'▼'} ${Math.abs(k.chg).toFixed(1)}%</div>
+      </div>
+    </div>`).join('');
+}
+
+const INITS={p01:initP01,p02:initP02,p03:initP03,p04:initP04,p05:initP05,p06:initP06,p07:initP07};
+function setUnit(u,btn){document.querySelectorAll('.toggle-group button').forEach(b=>b.classList.remove('on'));btn.classList.add('on');initP01();}
+function toggleFull(){if(!document.fullscreenElement)document.documentElement.requestFullscreen();else document.exitFullscreen();}
+
+/* ══ INIT ══ */
+// 사이드바 sido 옵션
+const sel=document.getElementById('p01-sido');
+SIDO.forEach(r=>{const o=document.createElement('option');o.value=r.code;o.textContent=r.name;sel.appendChild(o);});
+// 날짜 기본값
+const now=new Date(),prev=new Date(now);prev.setDate(prev.getDate()-30);
+document.getElementById('p01-from').value=prev.toISOString().slice(0,10);
+document.getElementById('p01-to').value=now.toISOString().slice(0,10);
+// 시계
+setInterval(()=>{const t=nowStr();document.getElementById('clock').textContent=t;document.getElementById('sb-time').textContent=t;},1000);
+// P01 초기 로드
+initialized.add('p01');initP01();
+// 30초 자동 갱신
+setInterval(()=>{if(!document.hidden)refreshCurrent();},30000);
+</script>
+</body>
+</html>
