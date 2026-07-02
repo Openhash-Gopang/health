@@ -6,7 +6,7 @@
 > **K-Health White Paper v1.0**
 > 발행: 고팡(Gopang) 생태계 — K-Health 팀
 > 일자: 2026년 6월
-> 배포 주소: [health.gopang.net](https://health.gopang.net)
+> 배포 주소: [health.hondi.net](https://health.hondi.net)
 > 저장소: [github.com/Openhash-Gopang/health](https://github.com/Openhash-Gopang/health)
 > 대상 독자: 의료 기관 담당자, 기술 검토자, 정책 입안자, 일반 이용자
 
@@ -250,7 +250,7 @@ K-Health는 `pdv.js` 모듈을 통해 모든 의료 이벤트를 환자의 PDV�
     "period_end":   "2026-06-03T15:00:00Z"
   },
   "where": {
-    "svc_url":       "https://health.gopang.net",
+    "svc_url":       "https://health.hondi.net",
     "label":         "한림보건소",
     "facility_type": "보건소"
   },
@@ -439,7 +439,7 @@ AI 의사(DeepSeek V3)에게 주입되는 시스템 프롬프트(`prompts/doctor
 ### 7.1 데스크톱 앱 (desktop.html)
 
 **대상**: PC·태블릿 환경  
-**디자인**: school.gopang.net 레이아웃 계승, 의료 아이덴티티(빨간 계열) 적용  
+**디자인**: school.hondi.net 레이아웃 계승, 의료 아이덴티티(빨간 계열) 적용  
 **규모**: 약 1,600줄, 20개 사이드바 메뉴 항목
 
 #### 사이드바 20개 메뉴
@@ -505,7 +505,7 @@ const target = isMobile
 location.replace(target);
 ```
 
-다른 고팡 서비스에서 건강 관련 키워드 감지 시 `health.gopang.net?ctx=증상`으로 직접 호출된다.
+다른 고팡 서비스에서 건강 관련 키워드 감지 시 `health.hondi.net?ctx=증상`으로 직접 호출된다.
 
 ---
 
@@ -604,12 +604,12 @@ gopang_v2 플러그인 아키텍처 기반으로 유해 의료 요청을 즉각 
 ### 파일 구조
 
 ```
-health.gopang.net (GitHub Pages)
+health.hondi.net (GitHub Pages)
 ├── index.html        디바이스 감지 라우터
 ├── desktop.html      PC 풀기능 앱 (~1,600줄)
 ├── webapp.html       모바일 최적화 앱
 ├── pdv.js            PDV 의료 기록 모듈
-├── CNAME             health.gopang.net
+├── CNAME             health.hondi.net
 ├── .nojekyll
 └── prompts/
     └── doctor.md     AI 의사 시스템 프롬프트
@@ -753,7 +753,7 @@ git push origin main
 
 ---
 
-*본 백서는 2026년 6월 기준으로 작성되었습니다. 최신 정보는 [health.gopang.net](https://health.gopang.net)에서 확인할 수 있습니다.*
+*본 백서는 2026년 6월 기준으로 작성되었습니다. 최신 정보는 [health.hondi.net](https://health.hondi.net)에서 확인할 수 있습니다.*
 
 *AI 의사는 의료 보조 도구이며 실제 의료행위를 수행하지 않습니다. 응급 상황에서는 즉시 119에 연락하십시오.*
 

@@ -1,5 +1,5 @@
 # K-Health 시스템 프롬프트 v2.0
-# 고팡 AI 생태계 · health.gopang.net
+# 고팡 AI 생태계 · health.hondi.net
 
 ---
 
