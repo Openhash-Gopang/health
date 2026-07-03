@@ -1,0 +1,607 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+<script src="/gopang-wallet.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
+<title>K-Health — 보건복지 안내</title>
+<meta name="description" content="K-Health 안내 AI와 대화를 통해 건강보험·복지 급여 등 제도를 안내합니다. 의료 진단은 다루지 않습니다.">
+
+<!-- ── 고팡 공통 인증 (subsystem-auth) ── -->
+<script type="module" src="https://hondi.net/auth/subsystem-auth.js"></script>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+:root {
+  --gov:     #001845;
+  --nav:     #002D72;
+  --pri:     #0057A8;
+  --pri-lt:  #006CC3;
+  --pri-bg:  #EBF3FC;
+  --pri-bd:  #B8D4F0;
+  --sur:     #FFFFFF;
+  --bg:      #F2F5FA;
+  --bdr:     #D1D9E6;
+  --txt:     #1A202C;
+  --sub:     #4A5568;
+  --hint:    #718096;
+  --grn:     #1B6B3A; --gbg:#E6F4EC; --gbd:#A3D9B8;
+  --red:     #C01C28; --rbg:#FEE2E2;
+  --org:     #C05621; --obg:#FEF3E2;
+  --pur:     #5B2D8E; --pbg:#F0EAF8;
+  --gld:     #96760A; --ybg:#FEF3CD;
+  --font:'Pretendard',-apple-system,'Apple SD Gothic Neo',sans-serif;
+  --r:10px;
+  --sh:0 1px 3px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.05);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--font);font-size:15px;color:var(--txt);background:var(--bg);-webkit-font-smoothing:antialiased;display:flex;flex-direction:column}
+a{text-decoration:none;color:inherit}
+button{font-family:var(--font)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{width:14px;height:14px;border:2px solid rgba(0,87,168,.2);border-top-color:var(--pri);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+
+/* ── 상단바 ── */
+#top-bar{
+  flex-shrink:0;display:flex;align-items:center;justify-content:space-between;
+  padding:12px 16px;padding-top:calc(12px + env(safe-area-inset-top));
+  background:var(--gov);color:#fff;box-shadow:var(--sh);z-index:20;
+}
+.tb-brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:15px}
+.tb-icon{width:26px;height:26px;border-radius:6px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:14px}
+.tb-sub{font-size:11px;font-weight:400;opacity:.75;margin-left:2px}
+.tb-gear{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.12);border:none;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.tb-gear:active{background:rgba(255,255,255,.22)}
+
+/* ── 대화 스레드 ── */
+#chat-thread{
+  flex:1;overflow-y:auto;padding:18px 14px 10px;display:flex;flex-direction:column;gap:10px;
+  -webkit-overflow-scrolling:touch;
+}
+.bubble{max-width:88%;padding:12px 14px;border-radius:14px;font-size:14.5px;line-height:1.65;white-space:normal;word-break:break-word;animation:pop .18s ease}
+@keyframes pop{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.bubble-ai{align-self:flex-start;background:var(--sur);border:1px solid var(--bdr);border-top-left-radius:4px;color:var(--txt);box-shadow:var(--sh)}
+.bubble-user{align-self:flex-end;background:var(--pri);color:#fff;border-top-right-radius:4px}
+.bubble-typing{align-self:flex-start;display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--sur);border:1px solid var(--bdr);border-radius:14px;border-top-left-radius:4px;font-size:12.5px;color:var(--hint)}
+
+/* ── 분석 카드 / 판결 요약 카드 ── */
+.analysis-card{display:flex;flex-direction:column;gap:8px}
+.ac-type{display:inline-block;align-self:flex-start;color:#fff;font-size:12px;font-weight:700;padding:4px 10px;border-radius:6px}
+.ac-row b{display:block;font-size:11.5px;color:var(--hint);font-weight:700;margin-bottom:2px}
+.verdict-card{display:flex;flex-direction:column;gap:10px}
+.vc-badge{font-size:11.5px;font-weight:700;color:var(--pri);background:var(--pri-bg);border:1px solid var(--pri-bd);border-radius:6px;padding:4px 8px;align-self:flex-start}
+.vc-summary{font-size:14px;font-weight:600;line-height:1.7}
+.vc-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12.5px}
+.vc-grid > div{background:var(--bg);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:2px}
+.vc-grid span{color:var(--hint);font-size:11px}
+.vc-grid b{color:var(--pri);font-size:15px}
+.vc-caution{font-size:11.5px;color:var(--hint);line-height:1.6;border-top:1px dashed var(--bdr);padding-top:8px}
+
+/* ── 진행률 ── */
+.progress-wrap{display:flex;flex-direction:column;gap:6px;min-width:220px}
+.progress-bar{height:6px;background:var(--bg);border-radius:3px;overflow:hidden}
+.progress-fill{height:100%;background:var(--pri);transition:width .3s}
+.progress-label{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--hint)}
+
+/* ── 입력바 ── */
+#input-bar{
+  flex-shrink:0;display:flex;align-items:flex-end;gap:8px;padding:10px 12px;
+  padding-bottom:calc(10px + env(safe-area-inset-bottom));
+  background:var(--sur);border-top:1px solid var(--bdr);
+}
+.mic-btn{
+  width:40px;height:40px;flex-shrink:0;border-radius:50%;border:1.5px solid var(--bdr);background:var(--bg);
+  color:var(--pri);display:flex;align-items:center;justify-content:center;cursor:pointer;
+}
+.mic-btn.recording{background:var(--rbg);border-color:#fca5a5;color:var(--red);animation:pulse 1s infinite}
+.mic-btn svg{width:18px;height:18px}
+#chat-input{
+  flex:1;resize:none;max-height:120px;min-height:40px;padding:10px 14px;border-radius:20px;
+  border:1.5px solid var(--bdr);font-family:var(--font);font-size:14.5px;line-height:1.5;background:var(--bg);color:var(--txt);
+}
+#chat-input:focus{outline:none;border-color:var(--pri);background:var(--sur)}
+.send-btn{
+  width:40px;height:40px;flex-shrink:0;border-radius:50%;border:none;background:var(--bdr);color:#fff;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s;
+}
+.send-btn.active{background:var(--pri)}
+.send-btn svg{width:17px;height:17px}
+#mic-msg{margin:0 12px 8px;padding:9px 12px;border-radius:8px;font-size:11.5px;line-height:1.6}
+
+/* ── 설정 시트 ── */
+.sheet-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:opacity .2s;z-index:30}
+.sheet-backdrop.open{opacity:1;pointer-events:auto}
+.sheet{
+  position:fixed;left:0;right:0;bottom:0;background:var(--sur);border-radius:16px 16px 0 0;
+  padding:18px 18px calc(18px + env(safe-area-inset-bottom));transform:translateY(100%);transition:transform .25s ease;z-index:31;
+  box-shadow:0 -4px 20px rgba(0,0,0,.15);max-height:80vh;overflow-y:auto;
+}
+.sheet.open{transform:translateY(0)}
+.sheet-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.sheet-hd h3{font-size:15.5px;font-weight:800}
+.sheet-close{width:30px;height:30px;border-radius:50%;background:var(--bg);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--sub)}
+.sheet label{font-size:12px;font-weight:700;color:var(--hint);display:block;margin-bottom:6px}
+.sheet input[type=text],.sheet input[type=password]{
+  width:100%;padding:11px 12px;border-radius:8px;border:1.5px solid var(--bdr);font-size:13.5px;font-family:var(--font);margin-bottom:6px;
+}
+.sheet-hint{font-size:11px;color:var(--hint);line-height:1.6;margin-bottom:14px}
+.sheet-save{width:100%;padding:12px;border-radius:8px;border:none;background:var(--pri);color:#fff;font-weight:700;font-size:14px;cursor:pointer}
+.sheet-save:active{background:var(--pri-lt)}
+</style>
+</head>
+<body>
+
+<header id="top-bar">
+  <div class="tb-brand">
+    <div class="tb-icon">🏥</div>
+    <div>K-Health</div>
+  </div>
+  <button class="tb-gear" onclick="openSettings()" title="이용 안내">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+      <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09A1.65 1.65 0 0015 4.6a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+    </svg>
+  </button>
+</header>
+
+<main id="chat-thread"></main>
+
+<footer id="input-bar">
+  <button class="mic-btn" id="mic-btn" onclick="toggleMic()" title="음성 입력">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0"/><line x1="12" y1="22" x2="12" y2="18"/><line x1="8" y1="22" x2="16" y2="22"/></svg>
+  </button>
+  <textarea id="chat-input" rows="1" placeholder="메시지를 입력하세요…"></textarea>
+  <button class="send-btn" id="send-btn" onclick="sendMessage()" title="전송">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+  </button>
+</footer>
+
+<div class="sheet-backdrop" id="sheet-backdrop" onclick="closeSettings()"></div>
+<div class="sheet" id="settings-sheet">
+  <div class="sheet-hd">
+    <h3>이용 안내</h3>
+    <button class="sheet-close" onclick="closeSettings()">✕</button>
+  </div>
+  <div class="sheet-hint" style="font-size:12.5px;line-height:1.9;margin-bottom:0">
+    K-Health 모바일은 <b>혼디 커뮤니티가 함께 사용하는 공유 계정</b>으로 동작합니다.
+    별도로 API Key를 등록하실 필요가 없습니다.<br><br>
+    안정적인 이용을 위해 1인당 1일 이용 한도가 있으며, 한도에 도달하면
+    다음 날 다시 이용하실 수 있습니다.
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// GWP 파라미터 파싱 (gopang → 새 탭 호출 시 전달)
+// ══════════════════════════════════════════════════════════════
+const _qs        = new URLSearchParams(location.search);
+const GWP_MODE    = _qs.get('gwp') === '1';
+const GWP_TOKEN   = _qs.get('token')  || '';
+const GWP_ORIGIN  = _qs.get('origin') || '';
+let   GWP_CTX     = '';
+if (_qs.get('ctx')) {
+  try {
+    GWP_CTX = (_qs.get('ctx_enc') === 'b64')
+      ? decodeURIComponent(escape(atob(_qs.get('ctx'))))
+      : decodeURIComponent(_qs.get('ctx'));
+  } catch(e) { GWP_CTX = ''; }
+}
+let _gwpSeedUsed = false;
+
+// ══════════════════════════════════════════════════════════════
+// 서버 강제 상속 릴레이(/gov/relay) — K-Public 공통 규칙은 서버가
+// 자동으로 붙인다. 클라이언트는 K-Public 고유 규칙(agencyPrompt)과
+// 대화 내용만 보낸다 — SP-COMMON-05 H2/H6 강제 구조.
+// ══════════════════════════════════════════════════════════════
+const PROXY          = 'https://gopang-proxy.tensor-city.workers.dev';
+const GOV_RELAY_URL   = PROXY + '/gov/relay';
+const AGENCY_ID       = 'k-health';
+const GOV_TIER        = 'gov-flash'; // 민원 안내는 무거운 추론이 필요 없음
+
+function escHtml(str) { return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── K-Public 고유 규칙 (K-Public 공통 규칙은 서버가 앞에 자동으로 붙임) ──
+// SP-COMMON-04(M1~M12) 원칙 준수: AI 주도·1턴 1질문·사용자 질문 우선 응답·
+// 종료 기준선·감정 공감·음성입력 처리·상태 마커 길이 상한.
+const AGENCY_PROMPT = `당신은 보건복지부를 대신하는 K-Health 안내 AI입니다. 건강보험 제도,
+복지 급여, 예방접종, 보건소 이용 절차 등 "제도 안내"를 담당하며, 증상
+진단·처방 같은 의료 판단은 다루지 않습니다(그건 K-Doctor의 역할입니다 —
+사용자가 진단이나 증상 상담을 원하면 K-Doctor로 안내하세요).
+
+절대 규칙:
+1. 한 턴에 정확히 하나의 질문만 한다.
+2. 사용자가 이미 말한 내용을 다시 묻지 않는다.
+3. 사용자가 건강 문제로 힘든 상황을 토로하면 먼저 짧고 진심 어린 공감을
+   표한 뒤 이어간다.
+4. 사용자가 진짜 질문을 던지면 먼저 답한 뒤 원래 흐름으로 돌아온다.
+5. 사용자가 증상을 설명하며 진단·처방을 원하면, 그건 K-Health가 아니라
+   K-Doctor의 영역임을 안내하고, 복지 제도 측면(의료급여 대상 여부 등)만
+   돕는다.
+6. 파악할 항목: 문의 유형(건강보험 자격·급여/복지급여 신청/예방접종/
+   보건소 이용/기타), 대상자 특성(연령·소득분위 등 제도 해당 여부 판단에
+   필요한 정보), 목적, 관할 지역.
+7. 보통 3~5회 질문이면 충분하다.
+
+사용자에게 보여줄 답변 본문을 먼저 쓰고, 맨 마지막 줄에 반드시 아래 형식의
+상태 마커를 한 줄로 덧붙인다. 각 필드는 100자 이내로 짧게 요약해 누적하라:
+
+<<<STATE>>>{"type":"","applicant":"","purpose":"","region":"","urgency":"","extra":"","ready":false}<<<END>>>
+- ready: 안내를 시작해도 좋다고 판단되면 true.`;
+
+function _parseInterviewState(raw) {
+  const m = raw.match(/<<<STATE>>>([\s\S]*?)<<<END>>>/);
+  let state = null;
+  if (m) { try { state = JSON.parse(m[1]); } catch(e) { state = null; } }
+  let visible = raw.replace(/<<<STATE>>>[\s\S]*?<<<END>>>/, '').trim();
+  // 방어: 토큰 한도로 <<<END>>> 없이 마커가 잘린 경우, 마커 시작점부터 전부 잘라낸다.
+  const cutIdx = visible.indexOf('<<<STATE>>>');
+  if (cutIdx !== -1) visible = visible.slice(0, cutIdx).trim();
+  return { visible, state };
+}
+
+// ══════════════════════════════════════════════════════════════
+// 채팅 UI 헬퍼
+// ══════════════════════════════════════════════════════════════
+function appendBubble(role, html) {
+  const thread = document.getElementById('chat-thread');
+  const div = document.createElement('div');
+  div.className = 'bubble ' + (role === 'ai' ? 'bubble-ai' : 'bubble-user');
+  div.innerHTML = html;
+  thread.appendChild(div);
+  thread.scrollTop = thread.scrollHeight;
+  return div;
+}
+function appendTyping() {
+  const thread = document.getElementById('chat-thread');
+  const div = document.createElement('div');
+  div.className = 'bubble-typing';
+  div.innerHTML = '<div class="spinner"></div><span>K-Health 안내 AI가 확인 중…</span>';
+  thread.appendChild(div);
+  thread.scrollTop = thread.scrollHeight;
+  return div;
+}
+
+// ══════════════════════════════════════════════════════════════
+// 공용 릴레이 호출 — BYOK 없음, K-Public 공통 규칙은 서버가 자동 삽입
+// ══════════════════════════════════════════════════════════════
+async function _pumpSSE(response, handleJson) {
+  if (!response.ok) {
+    let errMsg = `HTTP ${response.status}`;
+    try { const errBody = await response.json(); errMsg = errBody.message || errBody.error?.message || errBody.error || errMsg; } catch(e) {}
+    throw new Error(errMsg);
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let buf = '';
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split('\n');
+    buf = lines.pop();
+    for (const line of lines) {
+      const t = line.trim();
+      if (!t.startsWith('data:')) continue;
+      const payload = t.slice(5).trim();
+      if (payload === '[DONE]') continue;
+      let json;
+      try { json = JSON.parse(payload); } catch(e) { continue; }
+      handleJson(json);
+    }
+  }
+}
+
+function _govGuid() { return k_healthUser?.ipv6 || GWP_TOKEN || 'anonymous'; }
+
+async function _govCall(messages, opts = {}) {
+  const { maxTokens = 1000, stream = false, onChunk = null } = opts;
+  const resp = await fetch(GOV_RELAY_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      guid: _govGuid(), agency: AGENCY_ID, agencyPrompt: AGENCY_PROMPT,
+      messages, max_tokens: maxTokens, stream, tier: GOV_TIER,
+    })
+  });
+
+  if (stream) {
+    let fullText = '';
+    await _pumpSSE(resp, (json) => {
+      const delta = json.choices?.[0]?.delta?.content || '';
+      if (delta) { fullText += delta; onChunk && onChunk(delta, fullText); }
+    });
+    return fullText;
+  }
+
+  let data;
+  try { data = await resp.json(); } catch(e) { throw new Error(`HTTP ${resp.status}`); }
+  if (!resp.ok || data.error) throw new Error(data.message || data.error || `HTTP ${resp.status}`);
+  return data.choices?.[0]?.message?.content || '';
+}
+
+// ══════════════════════════════════════════════════════════════
+// 대화 상태
+// ══════════════════════════════════════════════════════════════
+let conversationState = {
+  phase: 'boot',            // boot → interviewing → generating → done
+  messages: [],              // system 메시지 없음 — 서버가 K-Public 공통+agencyPrompt로 자동 조립
+  caseState: { type:'', applicant:'', purpose:'', region:'', urgency:'', extra:'' },
+  turnCount: 0
+};
+let k_healthUser     = null;
+let k_healthNickname = '';
+
+// ── 최초 이용 여부 판별 (기기 단위) ──
+const _KPUB_GREETED_KEY = 'k_health_mobile_greeted_v1';
+function _hasGreetedBefore() { try { return localStorage.getItem(_KPUB_GREETED_KEY) === '1'; } catch(e) { return false; } }
+function _markGreeted() { try { localStorage.setItem(_KPUB_GREETED_KEY, '1'); } catch(e) {} }
+
+const _KPUB_REPEAT_GREETINGS = [
+  name => `${name}님, 오늘은 어떤 보건복지 문의로 오셨나요?`,
+  name => `${name}님, 다시 뵙습니다. 무엇을 도와드릴까요?`,
+];
+function _pickRepeatGreeting(name) {
+  const fn = _KPUB_REPEAT_GREETINGS[Math.floor(Math.random() * _KPUB_REPEAT_GREETINGS.length)];
+  return fn(name);
+}
+
+// ══════════════════════════════════════════════════════════════
+// 고팡 공통 인증 콜백
+// ══════════════════════════════════════════════════════════════
+window._onGopangAuth = async function(user) {
+  k_healthUser = user;
+  console.info('[K-Health Auth] 고팡 인증 완료 — Lv.' + user.level + ' / ' + user.via);
+  k_healthNickname = await _resolveNickname(user.ipv6 || GWP_TOKEN);
+  startGreeting();
+};
+
+async function _resolveNickname(ipv6) {
+  if (!ipv6) return '회원';
+  try {
+    const L1_URL = 'https://l1-hanlim.hondi.net/api/collections/profiles/records';
+    const filter = encodeURIComponent(`guid='${ipv6}'`);
+    const r = await fetch(`${L1_URL}?filter=${filter}&perPage=1`);
+    const d = await r.json();
+    return d.items?.[0]?.nickname || '회원';
+  } catch(e) { console.warn('[K-Health] 닉네임 조회 실패:', e.message); return '회원'; }
+}
+
+function startGreeting() {
+  if (conversationState.phase !== 'boot') return;
+  const name = k_healthNickname || '회원';
+
+  if (!_hasGreetedBefore()) {
+    appendBubble('ai', `
+      안녕하세요. K-Health를 처음 이용하시는군요. 저는 보건복지 제도 안내 AI입니다.<br>
+      <b>${escHtml(name)}</b>님의 건강보험·복지급여·예방접종 등 제도 문의를 안내해
+      드립니다. 다만 저는 증상 진단이나 처방 같은 의료 판단은 하지 않습니다 —
+      그런 상담이 필요하시면 K-Doctor를 이용해 주세요.<br><br>
+      어떤 문의로 오셨는지 말씀해 주세요.
+    `);
+    _markGreeted();
+  } else {
+    appendBubble('ai', escHtml(_pickRepeatGreeting(name)));
+  }
+
+  conversationState.phase = 'interviewing';
+}
+
+setTimeout(() => { if (conversationState.phase === 'boot') { k_healthNickname = '회원'; startGreeting(); } }, 4000);
+
+// ══════════════════════════════════════════════════════════════
+// 메시지 전송 · 대화 분기
+// ══════════════════════════════════════════════════════════════
+async function sendMessage() {
+  const ta = document.getElementById('chat-input');
+  const text = ta.value.trim();
+  if (!text) return;
+  appendBubble('user', escHtml(text).replace(/\n/g,'<br>'));
+  ta.value = ''; _micAutoResize(ta); _updateSendBtn();
+
+  switch (conversationState.phase) {
+    case 'interviewing': await _handleInterviewTurn(text); break;
+    case 'generating':
+      appendBubble('ai', '안내문을 준비하는 중입니다. 잠시만 기다려 주세요.');
+      break;
+    default: await _handleFreeQuestion(text); break;
+  }
+}
+
+async function _handleInterviewTurn(text) {
+  let userContent = text;
+  if (GWP_CTX && !_gwpSeedUsed) {
+    userContent = `[사용자가 사전에 "나만의 AI 비서"와 나눈 맥락 — 참고만 하고 그대로 인용하지 말 것]\n${GWP_CTX}\n\n[사용자의 이번 발화]\n${text}`;
+    _gwpSeedUsed = true;
+  }
+  conversationState.messages.push({ role:'user', content: userContent });
+  conversationState.turnCount++;
+
+  const typing = appendTyping();
+  try {
+    const raw = await _govCall(conversationState.messages, { maxTokens: 800 });
+    typing.remove();
+    const { visible, state } = _parseInterviewState(raw);
+    conversationState.messages.push({ role:'assistant', content: raw });
+
+    if (state) {
+      conversationState.caseState = {
+        type:      state.type      || conversationState.caseState.type,
+        applicant: state.applicant || conversationState.caseState.applicant,
+        purpose:   state.purpose   || conversationState.caseState.purpose,
+        region:    state.region    || conversationState.caseState.region,
+        urgency:   state.urgency   || conversationState.caseState.urgency,
+        extra:     state.extra     || conversationState.caseState.extra,
+      };
+    }
+
+    appendBubble('ai', escHtml(visible || '죄송합니다, 방금 답변이 조금 끊겼네요. 다시 한번 말씀해 주시겠어요?').replace(/\n/g,'<br>'));
+
+    if (state?.ready && conversationState.turnCount >= 2) {
+      conversationState.phase = 'generating';
+      setTimeout(runGuidanceGen, 400);
+    }
+  } catch(e) {
+    typing.remove();
+    appendBubble('ai', `⚠ ${escHtml(e.message)}`);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// 안내문 생성 — K-Law의 STEP 0~C처럼 무거운 다단계 생성이 필요 없어
+// 단일 호출로 처리한다(gov-flash 티어, 추론 불필요).
+// ══════════════════════════════════════════════════════════════
+async function runGuidanceGen() {
+  const cs = conversationState.caseState || {};
+  const typing = appendTyping();
+
+  const genPrompt = `아래 파악된 보건복지 문의 정보를 바탕으로 안내문을 작성하세요.
+문의유형: ${cs.type||''}
+대상자: ${cs.applicant||''}
+목적: ${cs.purpose||''}
+관할지역: ${cs.region||''}
+추가사실: ${cs.extra||''}
+
+담당 기관(관할 보건소, 국민건강보험공단 등), 신청 자격, 필요 서류, 절차,
+유의사항을 간결한 평문으로 작성하세요. 마지막 줄에 "정확한 자격 확인과
+신청은 반드시 관할 보건소, 국민건강보험공단 또는 복지로(bokjiro.go.kr)
+공식 채널에서 진행하십시오. 의료 진단·처방이 필요하면 K-Doctor 또는
+의료기관을 이용하십시오."를 반드시 포함하세요. 상태 마커는 붙이지 마세요.`;
+
+  try {
+    const result = await _govCall([...conversationState.messages, { role:'user', content: genPrompt }], { maxTokens: 1200 });
+    typing.remove();
+    appendBubble('ai', `
+      <div class="verdict-card">
+        <div class="vc-badge">보건복지 안내</div>
+        <div class="vc-summary" style="font-weight:400;font-size:13.5px;line-height:1.8">${escHtml(result).replace(/\n/g,'<br>')}</div>
+      </div>
+    `);
+    conversationState.phase = 'done';
+    conversationState.messages.push({ role:'assistant', content: result });
+  } catch(e) {
+    typing.remove();
+    appendBubble('ai', `⚠ 안내문 생성 중 오류: ${escHtml(e.message)}`);
+    conversationState.phase = 'interviewing';
+  }
+}
+
+async function _handleFreeQuestion(text) {
+  conversationState.messages.push({ role:'user', content: text });
+  const typing = appendTyping();
+  try {
+    const resp = await _govCall(conversationState.messages, { maxTokens: 800 });
+    typing.remove();
+    appendBubble('ai', escHtml(resp).replace(/\n/g,'<br>'));
+    conversationState.messages.push({ role:'assistant', content: resp });
+  } catch(e) {
+    typing.remove();
+    appendBubble('ai', `⚠ 오류: ${escHtml(e.message)}`);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// 설정 시트
+// ══════════════════════════════════════════════════════════════
+function openSettings() {
+  document.getElementById('sheet-backdrop').classList.add('open');
+  document.getElementById('settings-sheet').classList.add('open');
+}
+function closeSettings() {
+  document.getElementById('sheet-backdrop').classList.remove('open');
+  document.getElementById('settings-sheet').classList.remove('open');
+}
+
+// ══════════════════════════════════════════════════════════════
+// 음성 입력 (K-Law 모바일과 동일한 v3.6 패턴)
+// ══════════════════════════════════════════════════════════════
+let isRecording = false;
+let recognition = null;
+
+function _detectMicEnv() {
+  const inIframe   = window.self !== window.top;
+  const isSecure   = window.isSecureContext;
+  const isArtifact = location.hostname.includes('claude') || location.hostname.includes('artifact');
+  return { inIframe, isSecure, isArtifact };
+}
+async function _checkMicPermission() {
+  if (!navigator.permissions) return 'unknown';
+  try { const r = await navigator.permissions.query({ name:'microphone' }); return r.state; } catch(e) { return 'unknown'; }
+}
+function _micShowMsg(html, type = 'warn') {
+  document.getElementById('mic-msg')?.remove();
+  const colors = { warn:{bg:'#FFF3CD',bd:'#FDE68A',tx:'#78350F'}, error:{bg:'#FEE2E2',bd:'#FCA5A5',tx:'#7F1D1D'}, info:{bg:'#EFF6FF',bd:'#BFDBFE',tx:'#1E3A5F'} }[type] || {};
+  const div = document.createElement('div');
+  div.id = 'mic-msg';
+  div.style.cssText = `background:${colors.bg};border:1px solid ${colors.bd};color:${colors.tx};`;
+  div.innerHTML = html;
+  document.getElementById('input-bar').insertAdjacentElement('beforebegin', div);
+  setTimeout(() => div.remove(), 12000);
+}
+function _micSetIdle(btn) {
+  isRecording = false; btn.classList.remove('recording');
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0"/><line x1="12" y1="22" x2="12" y2="18"/><line x1="8" y1="22" x2="16" y2="22"/></svg>';
+  recognition = null;
+}
+function _micSetActive(btn) {
+  isRecording = true; btn.classList.add('recording');
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
+}
+function _micAutoResize(ta) { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'; }
+function _updateSendBtn() {
+  const ta = document.getElementById('chat-input');
+  document.getElementById('send-btn').classList.toggle('active', ta.value.trim().length > 0);
+}
+
+async function toggleMic() {
+  const btn = document.getElementById('mic-btn');
+  const ta  = document.getElementById('chat-input');
+  if (isRecording) { recognition && recognition.stop(); return; }
+
+  const env = _detectMicEnv();
+  if (env.isArtifact || env.inIframe) { _micShowMsg('<strong>🎙️ 미리보기 환경에서는 마이크를 사용할 수 없습니다.</strong><br>실제 배포 URL에서 사용하세요.', 'info'); return; }
+  if (!env.isSecure) { _micShowMsg('<strong>🎙️ HTTPS가 아닌 환경에서는 마이크를 사용할 수 없습니다.</strong>', 'error'); return; }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { _micShowMsg('⚠️ 이 브라우저는 음성-텍스트 변환을 지원하지 않습니다.<br>Chrome 또는 Edge를 사용해 주세요.', 'warn'); return; }
+  const perm = await _checkMicPermission();
+  if (perm === 'denied') { _micShowMsg('<strong>🎙️ 마이크 권한이 차단되어 있습니다.</strong><br>주소창 왼쪽 🔒 → 사이트 설정 → 마이크 → 허용 후 새로고침하세요.', 'error'); return; }
+
+  recognition = new SR();
+  recognition.lang = 'ko-KR'; recognition.continuous = true; recognition.interimResults = true; recognition.maxAlternatives = 1;
+  let finalText = ta.value; let interim = '';
+
+  recognition.onstart = () => { _micSetActive(btn); document.getElementById('mic-msg')?.remove(); };
+  recognition.onresult = (e) => {
+    interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) finalText += e.results[i][0].transcript;
+      else interim += e.results[i][0].transcript;
+    }
+    ta.value = finalText + interim; _micAutoResize(ta);
+  };
+  recognition.onend = () => { _micSetIdle(btn); ta.value = finalText; _micAutoResize(ta); _updateSendBtn(); };
+  recognition.onerror = (e) => {
+    _micSetIdle(btn);
+    const msgs = {
+      'not-allowed': ['마이크 권한이 거부되었습니다.<br>주소창 🔒 → 사이트 설정 → 마이크 → 허용 후 새로고침하세요.', 'error'],
+      'service-not-allowed': ['음성 인식 서비스가 허용되지 않았습니다.', 'error'],
+      'network': ['네트워크 오류로 음성 인식에 실패했습니다.', 'warn'],
+      'no-speech': ['음성이 감지되지 않았습니다. 마이크에 가까이 대고 다시 시도하세요.', 'warn'],
+      'audio-capture': ['마이크를 찾을 수 없습니다.', 'error'],
+    };
+    if (e.error !== 'aborted' && msgs[e.error]) _micShowMsg('🎙️ ' + msgs[e.error][0], msgs[e.error][1]);
+  };
+  recognition.start();
+}
+
+// ══════════════════════════════════════════════════════════════
+// 초기화
+// ══════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  const ta = document.getElementById('chat-input');
+  ta.addEventListener('input', () => { _micAutoResize(ta); _updateSendBtn(); });
+  ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+});
+</script>
+</body>
+</html>
