@@ -1,11 +1,12 @@
 /**
- * pdv.js — K-Traffic PDV 기록 모듈 v2.0
- * gopang-proxy /pdv/report 엔드포인트 연동
+ * pdv.js — K-Health PDV 기록 모듈 v2.0 (원본: K-Traffic 템플릿에서 복사, 2026-07-04 서비스명 수정)
+ * hondi-proxy /pdv/report 엔드포인트 연동
  * school/report.js 의 sendToPDV() 패턴 준수
  */
 
-const PROXY   = 'https://gopang-proxy.tensor-city.workers.dev';
-const SVC_ID  = 'traffic'; // K-Health는 'health'로 변경
+const PROXY   = 'https://hondi-proxy.tensor-city.workers.dev';
+const SVC_ID  = 'health'; // 2026-07-04 수정: 'traffic'으로 복붙돼 있던 오류 — K-Health PDV 기록이
+                           // source:'traffic'으로 잘못 저장되고 있었음(SCOPE_SOURCE_MAP.khealth='health'와 불일치)
 const PDV_VER = '1.0';
 
 function _getUserIpv6() {
