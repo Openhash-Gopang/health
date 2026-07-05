@@ -1526,6 +1526,7 @@ async function chatSend() {
     const r=await fetch('https://hondi-proxy.tensor-city.workers.dev/chat/completions',{
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({model:'deepseek-chat',max_tokens:1000,
+        service_id:'khealth', // 2026-07-05: UNIVERSAL 레이어 강제 주입
         messages:[{role:'system',content:SYS},...hist.slice(-10)]})
     });
     const d=await r.json();
