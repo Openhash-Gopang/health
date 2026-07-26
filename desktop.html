@@ -883,12 +883,12 @@ button{font-family:'Pretendard',-apple-system,sans-serif;cursor:pointer;border:n
     <div class="hero">
       <div class="hero-badge">
         <span class="hero-badge-dot"></span>
-        전국 병원·의원·보건소 연계 · 고팡 AI 생태계
+        고팡 AI 생태계 · AI 증상 상담 (개발 중인 기능 다수 포함)
       </div>
       <h1>출생부터 오늘까지,<br><span class="hl">당신의 모든 것을 아는 K-Health</span></h1>
       <p class="hero-sub">
         방대한 의학 지식 + 당신의 전 생애 PDV 기록 —
-        이 두 가지의 결합은 K-Health만이 제공할 수 있는 고유한 가치입니다
+        이 두 가지의 결합은 K-Health가 지향하는 목표입니다. 아래에서 실제 동작하는 기능과 개발 중인 기능을 구분해 안내합니다.
       </p>
       <div class="hero-cta">
         <button class="btn-hero" onclick="show('chat',null)">
@@ -896,25 +896,25 @@ button{font-family:'Pretendard',-apple-system,sans-serif;cursor:pointer;border:n
           K-Health 무료로 시작하기
         </button>
         <button class="btn-hero2" onclick="document.getElementById('compare-anchor').scrollIntoView({behavior:'smooth'})">
-          현실 병원과 비교하기
+          목표와 현재 상태 비교하기
         </button>
       </div>
       <div class="hero-stats">
         <div class="hstat">
           <span class="hstat-num">24<span class="u">시간</span></span>
-          <span class="hstat-lbl">365일 쉬지 않고</span>
+          <span class="hstat-lbl">AI 상담 응답 (실제 동작)</span>
         </div>
         <div class="hstat">
           <span class="hstat-num">1<span class="u">:1</span></span>
-          <span class="hstat-lbl">완전 전담 K-Health</span>
+          <span class="hstat-lbl">채팅 상담 방식</span>
         </div>
         <div class="hstat">
-          <span class="hstat-num">87<span class="u">%</span></span>
-          <span class="hstat-lbl">진단 정확도 향상 (파일럿)</span>
+          <span class="hstat-num">?<span class="u"></span></span>
+          <span class="hstat-lbl">진단 정확도 향상 — 검증된 수치 없음</span>
         </div>
         <div class="hstat">
           <span class="hstat-num">∞<span class="u"></span></span>
-          <span class="hstat-lbl">PDV 전 생애 기록 참조</span>
+          <span class="hstat-lbl">PDV 전 생애 기록 참조 (목표)</span>
         </div>
       </div>
     </div>
@@ -938,32 +938,31 @@ button{font-family:'Pretendard',-apple-system,sans-serif;cursor:pointer;border:n
     <!-- 비교표 -->
     <div class="compare-sec" id="compare-anchor">
       <div class="inner">
-        <div class="sec-badge">현실 병원 vs K-Health</div>
-        <h2 class="sec-title">무엇이 다른가요?</h2>
-        <p class="sec-sub">수십 명을 동시에 보는 현실 의료와, 오직 나 한 명에게만 집중하는 AI 평행 병원을 비교합니다.</p>
+        <div class="sec-badge">현재 상태 vs 목표</div>
+        <h2 class="sec-title">무엇이 실제로 되고, 무엇이 목표인가요?</h2>
+        <p class="sec-sub">K-Health가 지향하는 방향과, 지금 실제로 쓸 수 있는 기능을 구분해 정리합니다.</p>
         <table class="compare-table">
           <thead>
             <tr>
-              <th style="text-align:left;background:#f8f9fa">비교 항목</th>
-              <th class="th-old">현실 병원</th>
-              <th class="th-new">K-Health</th>
+              <th style="text-align:left;background:#f8f9fa">항목</th>
+              <th class="th-old">현재 상태</th>
+              <th class="th-new">목표(K-Health)</th>
             </tr>
           </thead>
           <tbody>
-            <tr><td>의사 1인당 환자 수</td><td>하루 50~100명</td><td>오직 나 <strong>1명</strong></td></tr>
-            <tr><td>진료 가능 시간</td><td>평일 오전~오후</td><td><strong>24시간 365일</strong></td></tr>
-            <tr><td>진료 기관 추천</td><td>본인이 직접 선택</td><td>위치·증상·이력 기반 <strong>AI 자동 추천</strong></td></tr>
-            <tr><td>예약 방식</td><td>본인이 전화·앱</td><td>AI가 진료 기관 AI 비서와 <strong>자동 협상·예약</strong></td></tr>
-            <tr><td>의사 사전 정보</td><td>짧은 문진 3분</td><td>AI 증상 분석 요약 <strong>사전 전달</strong> → 진단 정확도 ↑</td></tr>
-            <tr><td>의학 지식의 깊이</td><td>전문과 한정</td><td>광범위한 <strong>의학 지식 DB</strong> 실시간 참조</td></tr>
-            <tr><td>의료 기록 보관</td><td>병원 서버</td><td>환자 본인 <strong>PDV에 암호화 저장</strong> — 본인만 열람</td></tr>
-            <tr><td>처방 전달</td><td>환자가 직접 약국</td><td>AI가 인근 약국에 <strong>자동 전송</strong> — 도착 전 준비</td></tr>
-            <tr><td>치료 후 추적</td><td>다음 방문까지 없음</td><td>AI가 1일·3일·1주 후 <strong>예후 자동 추적</strong></td></tr>
-            <tr><td>의료 기록 편향</td><td>의사 개인 편차 존재</td><td>성별·연령·소득 <strong>편향 자동 보정</strong></td></tr>
+            <tr><td>AI 증상 상담</td><td colspan="2" style="text-align:center;color:var(--green-dk);font-weight:600">실제 동작 — 채팅으로 24시간 이용 가능</td></tr>
+            <tr><td>PDV 암호화 저장</td><td colspan="2" style="text-align:center;color:var(--green-dk);font-weight:600">실제 동작 — 동의 하에 본인만 열람</td></tr>
+            <tr><td>진료 기관 추천</td><td>개발되지 않음</td><td>위치·증상·이력 기반 AI 자동 추천</td></tr>
+            <tr><td>예약 방식</td><td>개발되지 않음</td><td>AI가 진료 기관과 자동 협상·예약</td></tr>
+            <tr><td>의사 사전 브리핑</td><td>개발되지 않음</td><td>AI 증상 분석 요약을 의료진에 사전 전달</td></tr>
+            <tr><td>의학 지식 참조</td><td>AI 모델의 학습 지식 기반 (실시간 논문 검색 아님)</td><td>실시간 최신 문헌·가이드라인 참조</td></tr>
+            <tr><td>처방 전달</td><td>개발되지 않음</td><td>AI가 인근 약국에 자동 전송</td></tr>
+            <tr><td>치료 후 추적</td><td>개발되지 않음</td><td>AI가 1일·3일·1주 후 예후 자동 추적</td></tr>
+            <tr><td>진단 편향 보정</td><td>개발되지 않음</td><td>성별·연령·소득 편향 자동 보정</td></tr>
             <tr style="background:linear-gradient(90deg,#f0fdf4,#eff6ff)">
               <td style="font-weight:700;color:#0f172a">PDV 기반 건강 위험 예측</td>
-              <td>출생 이후 기록 없음</td>
-              <td style="font-weight:700;color:#0f172a">출생부터 현재까지 <strong>전 생애 일상·질병 이력</strong> 통합 분석<br><small style="font-weight:400;color:var(--green-dk)">→ K-Health만의 고유한 강점</small></td>
+              <td>개발되지 않음</td>
+              <td style="font-weight:700;color:#0f172a">출생부터 현재까지 <strong>전 생애 일상·질병 이력</strong> 통합 분석<br><small style="font-weight:400;color:var(--green-dk)">→ 목표 — 아직 개발되지 않음</small></td>
             </tr>
           </tbody>
         </table>
@@ -984,17 +983,16 @@ button{font-family:'Pretendard',-apple-system,sans-serif;cursor:pointer;border:n
                 <svg viewBox="0 0 24 24" style="width:26px;height:26px"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
               </div>
               <div style="flex:1">
-                <div style="font-size:11px;font-weight:700;color:var(--green-dk);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">K-Health 핵심 우위</div>
+                <div style="font-size:11px;font-weight:700;color:var(--green-dk);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">K-Health가 지향하는 방향</div>
                 <h3 style="font-size:19px;margin-bottom:10px;color:#0f172a">방대한 의학 지식 + 전 생애 PDV 기록</h3>
                 <p style="font-size:13.5px;color:#374151;line-height:1.8">
-                  K-Health는 두 가지를 동시에 가집니다. 첫째, PubMed 3,700만 편·WHO 가이드라인·ICD-11 전체를 실시간 참조하는 <strong>방대한 의학 지식 데이터베이스</strong>. 둘째, 출생부터 오늘까지 모든 질병 이력·처방·생체 데이터·일상 기록이 담긴 <strong>개인의 전 생애 PDV</strong>.<br><br>
-                  어떤 사람 의사도 수십 년의 경험으로 쌓은 지식은 특정 전문과에 국한됩니다. 그리고 처음 만나는 환자의 과거를 알 수 없습니다. K-Health는 이 두 한계를 동시에 초월합니다. <strong>이것이 K-Health만이 제공할 수 있는 고유한 가치입니다.</strong>
+                  K-Health가 목표로 하는 건 두 가지의 결합입니다. 첫째, 폭넓은 의학 지식을 갖춘 AI 상담. 둘째, 출생부터 오늘까지 모든 질병 이력·처방·생체 데이터·일상 기록이 담긴 <strong>개인의 전 생애 PDV</strong> 통합.<br><br>
+                  현재는 AI 채팅 기반 증상 상담이 실제로 동작하며, AI는 학습된 의학 지식을 바탕으로 답변합니다(특정 논문 데이터베이스를 실시간으로 검색하는 기능은 아닙니다). PDV 전 생애 기록을 상담에 통합 참조하는 기능은 아직 개발 중입니다.
                 </p>
                 <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
-                  <span style="background:#fff;border:1px solid #bbf7d0;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--green-dk)">📚 PubMed 3,700만 편 실시간 참조</span>
-                  <span style="background:#fff;border:1px solid #bbf7d0;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--green-dk)">🔐 전 생애 PDV 통합 분석</span>
-                  <span style="background:#fff;border:1px solid #bbf7d0;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--green-dk)">🧬 ICD-11 전체 코드 참조</span>
-                  <span style="background:#fff;border:1px solid #bbf7d0;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--green-dk)">🏥 WHO 임상 가이드라인</span>
+                  <span style="background:#fff;border:1px solid #bbf7d0;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--green-dk)">💬 AI 채팅 증상 상담 (실제 동작)</span>
+                  <span style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;color:#6b7280">🔐 전 생애 PDV 통합 분석 (개발 중)</span>
+                  <span style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;color:#6b7280">🧬 ICD-11 코드 연동 (개발 중)</span>
                 </div>
               </div>
             </div>
@@ -1004,27 +1002,27 @@ button{font-family:'Pretendard',-apple-system,sans-serif;cursor:pointer;border:n
             <div class="feat-icon" style="background:#eff6ff;color:var(--blue)">
               <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
             </div>
-            <h3>위치 기반 최적 진료 기관 추천</h3>
-            <p>현재 위치와 증상 심각도, 과거 이력, 진료 대기 시간을 종합해 최적의 병원·의원·보건소를 자동 추천합니다. 경증은 보건소를 1순위로 추천해 의료 자원 낭비를 방지합니다.</p>
-            <div class="feat-source">🏥 전국 87,000개 의료 기관 DB · 실시간 대기 시간 연동 · 보건소 1차 우선 원칙</div>
+            <h3>위치 기반 최적 진료 기관 추천 (개발 중)</h3>
+            <p>현재 위치와 증상 심각도, 과거 이력, 진료 대기 시간을 종합해 최적의 병원·의원·보건소를 자동 추천하는 것이 목표입니다. 경증은 보건소를 1순위로 추천하는 원칙을 지향합니다.</p>
+            <div class="feat-source">아직 개발되지 않았습니다 — 실제 의료기관 데이터베이스·실시간 대기시간 연동이 없습니다.</div>
           </div>
 
           <div class="feat-card">
             <div class="feat-icon" style="background:#fff7ed;color:var(--orange)">
               <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             </div>
-            <h3>AI가 직접 진료 예약</h3>
-            <p>환자를 대신해 선택된 진료 기관의 AI 비서와 직접 소통합니다. 환자가 전화를 걸거나 앱을 조작할 필요 없이, AI끼리 협상해 가장 빠른 시간에 예약을 완료합니다.</p>
-            <div class="feat-source">⚡ 평균 예약 완료 3분 · 진료 기관 AI 비서 직접 연결 · 응급 시 앰뷸런스 자동 연계</div>
+            <h3>AI가 직접 진료 예약 (개발 중)</h3>
+            <p>환자를 대신해 진료 기관과 소통하여 예약을 완료하는 것이 목표입니다. 아직 개발되지 않았습니다 — 실제 진료 기관과 연동된 예약 시스템이 없습니다.</p>
+            <div class="feat-source">아직 개발되지 않았습니다.</div>
           </div>
 
           <div class="feat-card">
             <div class="feat-icon" style="background:#f5f3ff;color:#7c3aed">
               <svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="m9 14 2 2 4-4"/></svg>
             </div>
-            <h3>사람 의사의 진단 정확도를 높입니다</h3>
-            <p>환자가 도착하기 전, K-Health가 작성한 증상 분석 요약(확률·가능 질환·첨부 파일 분석·PDV 이력)을 사람 의사에게 미리 전달합니다. 사람 의사는 더 적은 시간에 더 정확한 진단을 내릴 수 있습니다.</p>
-            <div class="feat-source">🔬 AI 보조 진단 도입 후 참여 기관 파일럿에서 진단 정확도 평균 87% 향상 (내부 테스트 결과)</div>
+            <h3>사람 의사의 진단 정확도를 높이는 것이 목표입니다 (개발 중)</h3>
+            <p>환자가 도착하기 전, AI가 작성한 증상 분석 요약을 사람 의사에게 미리 전달하는 기능을 구상하고 있습니다. 아직 개발되지 않았습니다.</p>
+            <div class="feat-source">이전 버전에는 "진단 정확도 평균 87% 향상(내부 테스트 결과)"이라는 수치가 표시되어 있었는데, 근거 자료가 없는 수치였습니다 — 삭제했습니다.</div>
           </div>
 
           <div class="feat-card">
@@ -1032,17 +1030,17 @@ button{font-family:'Pretendard',-apple-system,sans-serif;cursor:pointer;border:n
               <svg viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             </div>
             <h3>의료 기록은 오직 나만 가집니다</h3>
-            <p>모든 진료 기록·처방·생체 데이터는 환자 본인의 고팡 PDV에 암호화 저장됩니다. 병원도, 보험사도, 정부도 열람할 수 없습니다. 오직 환자 본인의 동의 하에만 의료진에게 공유됩니다.</p>
-            <div class="feat-source">🛡️ AES-256-GCM + OpenHash 불변 원장 · GDPR · 개인정보보호법 준수</div>
+            <p>모든 진료 기록·처방·생체 데이터는 환자 본인의 고팡 PDV에 암호화 저장되도록 설계되어 있습니다. 병원도, 보험사도, 정부도 열람할 수 없습니다. 오직 환자 본인의 동의 하에만 공유됩니다.</p>
+            <div class="feat-source">🛡️ AES-256-GCM + OpenHash 불변 원장 설계 원칙</div>
           </div>
 
           <div class="feat-card">
             <div class="feat-icon" style="background:#f1f5f9;color:#475569">
               <svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
             </div>
-            <h3>진료 후에도 K-Health가 함께합니다</h3>
-            <p>처방 완료 후 K-Health는 1일·3일·1주 후 자동으로 상태를 확인합니다. 호전되지 않으면 건강 관리 방향을 갱신하고 상위 기관 전원을 제안합니다. 모든 경과는 PDV에 기록됩니다.</p>
-            <div class="feat-source">📈 실시간 예후 추적 · 약국 처방 사전 전송 · 건강 관리 방향 자동 갱신</div>
+            <h3>진료 후 추적 (개발 중)</h3>
+            <p>처방 완료 후 1일·3일·1주 후 자동으로 상태를 확인하는 기능을 구상하고 있습니다. 아직 개발되지 않았습니다.</p>
+            <div class="feat-source">아직 개발되지 않았습니다.</div>
           </div>
 
         </div>
@@ -1054,62 +1052,62 @@ button{font-family:'Pretendard',-apple-system,sans-serif;cursor:pointer;border:n
       <div class="inner">
         <div class="sec-badge" style="background:rgba(62,207,142,.14);color:var(--green)">작동 방식</div>
         <h2 class="sec-title">K-Health는 어떻게 작동하나요?</h2>
-        <p class="sec-sub" style="color:#94a3b8">7단계 AI 의료 워크플로우 — 증상 파악부터 예후 추적까지 자동화됩니다.</p>
+        <p class="sec-sub" style="color:#94a3b8">아래 단계 중 1~2단계는 실제로 동작하며, 3~7단계는 목표로 하는 방향이며 아직 개발되지 않았습니다.</p>
         <div class="steps">
           <div class="step">
             <div class="step-num">1</div>
             <div class="step-body">
-              <h4>증상 & 환자 파악</h4>
-              <p>K-Health가 대화를 통해 현재 증상(발생 시점·강도·경과)을 파악합니다. 사진·파일 첨부로 더 정밀한 분석이 가능하며, 고팡 PDV에 저장된 <strong>출생부터 현재까지의 전 생애 질병 이력·처방·생체 데이터·일상 기록</strong>을 동의 하에 통합 참조합니다. 초진만으로는 파악하기 어려운 정보를 K-Health는 처음부터 갖추고 있습니다.</p>
-              <span class="step-badge">전 생애 PDV 통합 참조 · 사진·검사지 분석 · 24시간 응답</span>
+              <h4>증상 & 환자 파악 (실제 동작)</h4>
+              <p>K-Health가 대화를 통해 현재 증상(발생 시점·강도·경과)을 파악합니다. PDV에 저장된 전 생애 기록을 상담에 자동으로 통합 참조하는 기능은 아직 개발되지 않았습니다.</p>
+              <span class="step-badge">채팅 기반 증상 파악 · 24시간 응답 (실제 동작)</span>
             </div>
           </div>
           <div class="step">
             <div class="step-num">2</div>
             <div class="step-body">
-              <h4>확률적 증상 분석</h4>
-              <p>방대한 의학 지식 데이터베이스를 바탕으로 가능한 질환을 확률 순으로 나열합니다. 예: ①급성 위장염(55%) ②식중독(25%) ③과민성 장증후군(15%) ④기타(5%). 확정적 진단이 아니라 가능성의 범위를 투명하게 제시합니다.</p>
-              <span class="step-badge">ICD-11 기반 증상 분류 · 확률 순위 제시 · 비편향 분석</span>
+              <h4>확률적 증상 분석 (실제 동작)</h4>
+              <p>AI가 학습된 의학 지식을 바탕으로 가능한 질환을 확률 순으로 나열합니다. 확정적 진단이 아니라 가능성의 범위로 제시되며, 실제 진단은 반드시 면허를 가진 사람 의사가 수행해야 합니다.</p>
+              <span class="step-badge">AI 채팅 기반 확률 제시 (실제 동작)</span>
             </div>
           </div>
           <div class="step">
             <div class="step-num">3</div>
             <div class="step-body">
-              <h4>최적 진료 기관 선택</h4>
-              <p>증상 심각도에 따라 보건소(경증)→의원(중등)→종합병원(중증)→응급실+앰뷸런스(응급)를 단계적으로 추천합니다. 현재 위치, 대기 시간, 전문 분야, 과거 방문 이력을 종합합니다.</p>
-              <span class="step-badge">전국 87,000개 기관 DB · 실시간 대기 · 보건소 1순위 원칙</span>
+              <h4>최적 진료 기관 선택 (개발 중)</h4>
+              <p>증상 심각도에 따라 보건소→의원→종합병원→응급실을 단계적으로 추천하는 것이 목표입니다. 아직 개발되지 않았습니다.</p>
+              <span class="step-badge">개발 중 — 실제 기관 DB·대기시간 연동 없음</span>
             </div>
           </div>
           <div class="step">
             <div class="step-num">4</div>
             <div class="step-body">
-              <h4>AI 비서 간 자동 예약</h4>
-              <p>환자가 동의하면, K-Health AI가 선택된 진료 기관의 AI 비서와 직접 연결해 가장 빠른 예약 슬롯을 확보합니다. 환자는 버튼 하나로 예약이 완료됩니다. 응급 상황이면 앰뷸런스를 자동 요청합니다.</p>
-              <span class="step-badge">고팡 AI 비서 네트워크 · 평균 3분 예약 · 앰뷸런스 자동 연계</span>
+              <h4>AI 비서 간 자동 예약 (개발 중)</h4>
+              <p>진료 기관과 자동으로 예약을 진행하는 것이 목표입니다. 아직 개발되지 않았습니다.</p>
+              <span class="step-badge">개발 중</span>
             </div>
           </div>
           <div class="step">
             <div class="step-num">5</div>
             <div class="step-body">
-              <h4>사람 의사에게 사전 브리핑</h4>
-              <p>환자 도착 전, K-Health가 작성한 증상 분석 요약·PDV 이력·첨부 파일 분석을 의료진에게 전달합니다. 의사는 3분 문진 대신 핵심에 집중해 정확도를 높입니다.</p>
-              <span class="step-badge">사람 의사 도착 전 수신 · 진단 정확도 87% 향상 · 동의 기반 공유</span>
+              <h4>사람 의사에게 사전 브리핑 (개발 중)</h4>
+              <p>환자 도착 전 증상 분석 요약을 의료진에게 전달하는 것이 목표입니다. 아직 개발되지 않았습니다.</p>
+              <span class="step-badge">개발 중 — 검증된 정확도 수치 없음</span>
             </div>
           </div>
           <div class="step">
             <div class="step-num">6</div>
             <div class="step-body">
-              <h4>처방 → 약국 자동 전달</h4>
-              <p>사람 의사의 처방이 확정되면 AI가 인근 협력 약국에 처방전을 즉시 전송합니다. 환자가 약국에 도착하기 전에 약이 준비됩니다. 모든 처방 기록은 PDV에 저장됩니다.</p>
-              <span class="step-badge">처방 즉시 전송 · 도착 전 준비 · PDV 자동 기록</span>
+              <h4>처방 → 약국 자동 전달 (개발 중)</h4>
+              <p>처방을 인근 약국에 자동 전송하는 것이 목표입니다. 아직 개발되지 않았습니다.</p>
+              <span class="step-badge">개발 중</span>
             </div>
           </div>
           <div class="step">
             <div class="step-num">7</div>
             <div class="step-body">
-              <h4>예후 추적 & 치료 갱신</h4>
-              <p>진료 후 AI가 1일·3일·1주 후 자동으로 상태를 확인합니다. 호전이 없으면 건강 관리 방향을 갱신하고 상위 기관 전원을 제안합니다. 모든 경과는 환자의 PDV에 누적 기록됩니다.</p>
-              <span class="step-badge">자동 추적 알림 · 실시간 건강 관리 갱신 · 평생 건강 기록 구축</span>
+              <h4>예후 추적 & 치료 갱신 (개발 중)</h4>
+              <p>진료 후 자동으로 상태를 확인하는 것이 목표입니다. 아직 개발되지 않았습니다.</p>
+              <span class="step-badge">개발 중</span>
             </div>
           </div>
         </div>
@@ -1130,8 +1128,8 @@ button{font-family:'Pretendard',-apple-system,sans-serif;cursor:pointer;border:n
           </div>
           <div class="sec-card">
             <svg viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            <h4>MedCrypt 3단계 암호화</h4>
-            <p>AES-256-GCM → Paillier 동형암호 → RSA-OAEP · 연산 중에도 암호화 상태 유지</p>
+            <h4>암호화 (설계 목표)</h4>
+            <p>AES-256-GCM 기반 암호화를 목표로 설계되어 있습니다. 동형암호 등 고급 암호화 기법은 아직 구현되지 않았습니다.</p>
           </div>
           <div class="sec-card">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
@@ -1140,8 +1138,8 @@ button{font-family:'Pretendard',-apple-system,sans-serif;cursor:pointer;border:n
           </div>
           <div class="sec-card">
             <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
-            <h4>GDPR · 개인정보보호법</h4>
-            <p>재식별 공격 저항률 100% · k-익명성 k≥5 · 차분 프라이버시 ε=1.0 · 개인정보보호법 완전 준수</p>
+            <h4>개인정보 보호 (목표)</h4>
+            <p>개인정보보호법 준수를 목표로 합니다. 이전 버전에는 "재식별 공격 저항률 100%·k-익명성 k≥5·차분 프라이버시 ε=1.0·완전 준수" 등 실제 검증·구현되지 않은 구체적 수치가 표시되어 있었는데, 근거 없는 수치였습니다 — 삭제했습니다.</p>
           </div>
         </div>
       </div>
@@ -1167,7 +1165,7 @@ button{font-family:'Pretendard',-apple-system,sans-serif;cursor:pointer;border:n
     <!-- 푸터 -->
     <div class="footer">
       <div style="margin-bottom:6px;color:#64748b">K-Health · 고팡 AI 생태계 · AI City Inc. · 제주특별자치도</div>
-      <div>전국 87,000개 의료 기관 연계 · OpenHash 기술 적용 · GDPR 준수 · <a href="https://hondi.net" style="color:var(--green)">hondi.net</a></div>
+      <div>고팡 AI 생태계 · OpenHash 기술 적용 목표 · <a href="https://hondi.net" style="color:var(--green)">hondi.net</a></div>
     </div>
 
   </div>
